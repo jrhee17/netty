@@ -5,7 +5,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -18,12 +17,42 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.logging.LoggingHandler;
 import org.junit.Test;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+
+import static org.junit.Assert.*;
+
 
 public class BasicQuicTest {
+
+    private static final String ECHO_MESSAGE = "hai:)";
+
     @Test
     public void testSimpleEcho() throws Throwable {
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<String> result = new AtomicReference<>();
+
+        final Channel serverChannel = setupServer(retval -> {
+            result.set(retval);
+            latch.countDown();
+        });
+
+        final Channel clientChannel = getClient();
+        clientChannel.writeAndFlush(new DatagramPacket(Unpooled.copiedBuffer(
+                ECHO_MESSAGE.getBytes()), new InetSocketAddress(20080))).sync();
+
+        latch.await();
+
+        assertEquals(ECHO_MESSAGE, result.get());
+
+        serverChannel.close().await();
+        clientChannel.close().await();
+    }
+
+    private static Channel setupServer(Consumer<String> validator) throws Exception {
         final MultithreadEventLoopGroup group = new MultithreadEventLoopGroup(NioHandler.newFactory());
         final Bootstrap b = new Bootstrap();
         b.group(group).channel(NioDatagramChannel.class)
@@ -37,25 +66,19 @@ public class BasicQuicTest {
                  p.addLast(new SimpleChannelInboundHandler<DatagramPacket>() {
                      @Override
                      protected void messageReceived(ChannelHandlerContext ctx, DatagramPacket msg) throws Exception {
-                         final InetAddress srcAddr = msg.sender().getAddress();
                          final ByteBuf buf = msg.content();
                          final int rcvPktLength = buf.readableBytes();
                          final byte[] rcvPktBuf = new byte[rcvPktLength];
                          buf.readBytes(rcvPktBuf);
-                         System.out.println("Inside incomming packet handler");
-
+                         validator.accept(new String(rcvPktBuf));
                      }
                  });
              }
          });
-
-        // Bind and start to accept incoming connections.
-        Channel channel = b.bind(new InetSocketAddress(20080)).sync().channel();
-        channel.closeFuture().await();
+        return b.bind(new InetSocketAddress(20080)).sync().await().channel();
     }
 
-    @Test
-    public void testSimpleClient() throws Exception {
+    public static Channel getClient() throws Exception {
         final Bootstrap bootstrap = new Bootstrap();
         final MultithreadEventLoopGroup workerGroup = new MultithreadEventLoopGroup(NioHandler.newFactory());
         bootstrap.group(workerGroup)
@@ -64,22 +87,9 @@ public class BasicQuicTest {
                  .handler(new ChannelInitializer<NioDatagramChannel>() {
                      @Override
                      protected void initChannel(NioDatagramChannel ch)throws Exception {
-                         final ChannelPipeline pipeline = ch.pipeline();
-                         pipeline.addLast(new ChannelHandler() {
-                             @Override
-                             public void channelActive(ChannelHandlerContext ctx) throws Exception {
-                                 ctx.writeAndFlush(new DatagramPacket(Unpooled.copiedBuffer("hai:)".getBytes()), new InetSocketAddress(20080)));
-                             }
-
-                             @Override
-                             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                                 System.out.println("msg: " + msg);
-                             }
-                         });
                      }
                  });
         final ChannelFuture channelFuture = bootstrap.connect(new InetSocketAddress(20080)).sync();
-        System.out.println(channelFuture.channel().remoteAddress());
-        channelFuture.channel().closeFuture().await(1000);
+        return channelFuture.channel();
     }
 }
