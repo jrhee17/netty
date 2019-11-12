@@ -28,6 +28,7 @@ import static org.junit.Assert.*;
 public class BasicQuicTest {
 
     private static final String ECHO_MESSAGE = "hai:)";
+    private static final String CHROMIUM_ENDPOINT = "https://quic.rocks:4433/";
 
     @Test
     public void testSimpleEcho() throws Throwable {
