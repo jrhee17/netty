@@ -16,10 +16,8 @@ import io.netty.channel.nio.NioHandler;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.resolver.InetNameResolver;
 import org.junit.Test;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -32,7 +30,7 @@ public class BasicQuicTest {
 
     private static final String ECHO_MESSAGE = "hai:)";
     private static final String CHROMIUM_ENDPOINT = "https://quic.rocks:4433/";
-    private static final InetSocketAddress remote = new InetSocketAddress("cloudflare-quic.com", 443);;
+
 
     @Test
     public void testSimpleEcho() throws Throwable {
@@ -45,38 +43,45 @@ public class BasicQuicTest {
             latch.countDown();
         });
 
-        final Channel clientChannel = getClient();
+        final InetSocketAddress recipient = new InetSocketAddress(20080);
+        final Channel clientChannel = getClient(recipient, ignored -> {});
         clientChannel.writeAndFlush(new DatagramPacket(Unpooled.copiedBuffer(
-                ECHO_MESSAGE.getBytes()), new InetSocketAddress(20080))).sync();
+                ECHO_MESSAGE.getBytes()), recipient)).sync();
 
         latch.await();
 
         assertEquals(ECHO_MESSAGE, result.get());
 
-        serverChannel.close().await();
-        clientChannel.close().await();
+        serverChannel.closeFuture().await();
+        clientChannel.closeFuture().await();
     }
 
     @Test
-    public void longHeaderPacket() throws Exception {
-        byte[] headerForm = {
+    public void trySendInitialPacket() throws Exception {
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<String> result = new AtomicReference<>();
+
+        final byte[] headerForm = {
                 (byte) ((0x80 & 0xff) + (0x40 & 0xff)),
-                (byte) 0xff, 0, 0x00, 0x17,
-                1, (byte) 0, 1, (byte) 0,
+                (byte) 0, 0, 0, 0x01,
+                (byte) 0, 0, 0, 0,
                 0, 0, 1, 0
         };
 
-//        final ByteBuf byteBuf = Unpooled.copyInt(headerForm);
         final ByteBuf byteBuf = Unpooled.copiedBuffer(headerForm);
         System.out.println(ByteBufUtil.prettyHexDump(byteBuf));
 
-        final byte[] bytes = ByteBufUtil.decodeHexDump("07ff706cb107568ef7116f5f58a9ed9010");
-        final ByteBuf byteBufFromInternet = Unpooled.copiedBuffer(bytes);
-        System.out.println(ByteBufUtil.prettyHexDump(Unpooled.copiedBuffer(bytes)));
+        final InetSocketAddress remote = new InetSocketAddress("quic.tech", 4433);
+        final Channel client = getClient(remote, newValue -> {
+            latch.countDown();
+            result.set(newValue);
+        });
+        client.writeAndFlush(new DatagramPacket(byteBuf, remote)).sync();
 
-        final Channel client = getRemoteClient();
-        client.writeAndFlush(new DatagramPacket(byteBufFromInternet, remote)).sync();
-        client.closeFuture().await();
+        latch.await();
+        assertNotNull(result.get());
+
+        client.close().await();
     }
 
     @Test
@@ -105,30 +110,18 @@ public class BasicQuicTest {
                          buf.readBytes(rcvPktBuf);
                          validator.accept(new String(rcvPktBuf));
                      }
+
+                     @Override
+                     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+                         System.out.println(cause);
+                     }
                  });
              }
          });
         return b.bind(new InetSocketAddress(20080)).sync().await().channel();
     }
 
-    public static Channel getClient() throws Exception {
-        final Bootstrap bootstrap = new Bootstrap();
-        final MultithreadEventLoopGroup workerGroup = new MultithreadEventLoopGroup(NioHandler.newFactory());
-        bootstrap.group(workerGroup)
-                 .channel(NioDatagramChannel.class)
-                 .option(ChannelOption.SO_BROADCAST, true)
-                 .handler(new ChannelInitializer<NioDatagramChannel>() {
-                     @Override
-                     protected void initChannel(NioDatagramChannel ch)throws Exception {
-                         final ChannelPipeline p = ch.pipeline();
-                         p.addLast(new LoggingHandler());
-                     }
-                 });
-        final ChannelFuture channelFuture = bootstrap.connect(new InetSocketAddress(20080)).sync();
-        return channelFuture.channel();
-    }
-
-    public static Channel getRemoteClient() throws Exception {
+    public static Channel getClient(InetSocketAddress address, Consumer<String> validator) throws Exception {
         final Bootstrap bootstrap = new Bootstrap();
         final MultithreadEventLoopGroup workerGroup = new MultithreadEventLoopGroup(NioHandler.newFactory());
         bootstrap.group(workerGroup)
@@ -142,12 +135,16 @@ public class BasicQuicTest {
                          p.addLast(new SimpleChannelInboundHandler<DatagramPacket>() {
                              @Override
                              protected void messageReceived(ChannelHandlerContext ctx, DatagramPacket msg) throws Exception {
-                                 System.out.println(msg);
+                                 final ByteBuf buf = msg.content();
+                                 final int rcvPktLength = buf.readableBytes();
+                                 final byte[] rcvPktBuf = new byte[rcvPktLength];
+                                 buf.readBytes(rcvPktBuf);
+                                 validator.accept(new String(rcvPktBuf));
                              }
                          });
                      }
                  });
-        final ChannelFuture channelFuture = bootstrap.connect(remote).sync();
+        final ChannelFuture channelFuture = bootstrap.connect(address).sync();
         return channelFuture.channel();
     }
 }
