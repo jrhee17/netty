@@ -372,6 +372,7 @@
     <module>transport-blockhound-tests</module>
     <module>microbench</module>
     <module>bom</module>
+    <module>codec-quic</module>
   </modules>
 
   <dependencyManagement>
