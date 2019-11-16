@@ -73,12 +73,7 @@ public class BasicQuicTest {
 
         final InetSocketAddress remote = new InetSocketAddress("quic.tech", 4433);
         final Channel client = getClient(remote, res -> {
-
-//            final int rcvPktLength = buf.readableBytes();
-//            final byte[] rcvPktBuf = new byte[rcvPktLength];
-//            buf.readBytes(rcvPktBuf);
             result.set(Unpooled.copiedBuffer(res));
-
             latch.countDown();
         });
         client.writeAndFlush(new DatagramPacket(byteBuf, remote)).sync();
@@ -150,11 +145,11 @@ public class BasicQuicTest {
                      protected void initChannel(NioDatagramChannel ch)throws Exception {
                          final ChannelPipeline p = ch.pipeline();
                          p.addLast(new LoggingHandler());
-                         p.addLast(new QuicClientHandler());
-                         p.addLast(new SimpleChannelInboundHandler<DatagramPacket>() {
+                         p.addLast(new QuicResponseDecoder());
+                         p.addLast(new SimpleChannelInboundHandler<QuicMessage>() {
                              @Override
-                             protected void messageReceived(ChannelHandlerContext ctx, DatagramPacket msg) throws Exception {
-                                 final ByteBuf buf = msg.content();
+                             protected void messageReceived(ChannelHandlerContext ctx, QuicMessage msg) throws Exception {
+                                 final ByteBuf buf = msg.getByteBuf();
                                  validator.accept(buf);
                              }
                          });
