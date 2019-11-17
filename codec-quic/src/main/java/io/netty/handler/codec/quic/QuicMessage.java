@@ -5,6 +5,8 @@ import io.netty.buffer.ByteBuf;
 public class QuicMessage {
     ByteBuf byteBuf;
 
+    QuicMessage() {}
+
     public QuicMessage(ByteBuf byteBuf) {
         this.byteBuf = byteBuf;
     }

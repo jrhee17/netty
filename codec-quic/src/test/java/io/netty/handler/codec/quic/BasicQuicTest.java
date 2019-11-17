@@ -76,7 +76,8 @@ public class BasicQuicTest {
             result.set(Unpooled.copiedBuffer(res));
             latch.countDown();
         });
-        client.writeAndFlush(new DatagramPacket(byteBuf, remote)).sync();
+        client.writeAndFlush(new QuicRequest(remote, 1, 1, 0, 0,
+                                             1, new byte[] {0}, new byte[] {0}, 0, new byte[] {0})).sync();
 
         latch.await();
         assertNotNull(result.get());
@@ -88,7 +89,7 @@ public class BasicQuicTest {
     @Test
     public void initialPacket() {
         final byte[] bytes = ByteBufUtil.decodeHexDump("07ff706cb107568ef7116f5f58a9ed9010");
-        System.out.println(ByteBufUtil.prettyHexDump(Unpooled.copiedBuffer(bytes)));;
+        System.out.println(ByteBufUtil.prettyHexDump(Unpooled.copiedBuffer(bytes)));
     }
 
     private static Channel setupServer(Consumer<String> validator) throws Exception {
@@ -134,6 +135,7 @@ public class BasicQuicTest {
                          final ChannelPipeline p = ch.pipeline();
                          p.addLast(new LoggingHandler());
                          p.addLast(new QuicResponseDecoder());
+                         p.addLast(new QuicRequestEncoder());
                          p.addLast(new SimpleChannelInboundHandler<QuicMessage>() {
                              @Override
                              protected void messageReceived(ChannelHandlerContext ctx, QuicMessage msg) throws Exception {
