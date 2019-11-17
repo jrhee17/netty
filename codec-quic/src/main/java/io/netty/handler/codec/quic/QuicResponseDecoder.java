@@ -1,6 +1,7 @@
 package io.netty.handler.codec.quic;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.codec.MessageToMessageDecoder;
@@ -17,16 +18,20 @@ public class QuicResponseDecoder extends MessageToMessageDecoder<DatagramPacket>
     private enum State {
         INITIAL,
         HEADER,
-        DCID_LEN
+        DCID_LEN,
+        DCID,
+        SCID_LEN,
+        SCID,
     }
 
     private State state = State.INITIAL;
+    private int dcidLen;
+    private int scidLen;
+    private int version;
 
     @Override
     protected void decode(ChannelHandlerContext ctx, DatagramPacket msg, List<Object> out) throws Exception {
         final ByteBuf byteBuf = msg.content();
-
-
 
         switch (state) {
         case INITIAL:
@@ -53,16 +58,44 @@ public class QuicResponseDecoder extends MessageToMessageDecoder<DatagramPacket>
                 return;
             }
             final ByteBuf versionByteBuf = byteBuf.readBytes(4);
-            final int version = versionByteBuf.readInt();
+            version = versionByteBuf.readInt();
             logger.info("version: {}", version);
             state = State.DCID_LEN;
         case DCID_LEN:
             if (!byteBuf.isReadable()) {
                 return;
             }
-            final byte dcidLenByte = byteBuf.readByte();
-            logger.info("dcidLenByte: {}", dcidLenByte);
+            dcidLen = byteBuf.readByte();
+            logger.info("dcidLen: {}", dcidLen);
+            state = State.DCID;
+        case DCID:
+            if (!byteBuf.isReadable()) {
+                return;
+            }
+            final ByteBuf dcid = byteBuf.readBytes(dcidLen);
+            logger.info("dcid: {}", dcid);
+            state = State.SCID_LEN;
+        case SCID_LEN:
+            if (!byteBuf.isReadable()) {
+                return;
+            }
+            scidLen = byteBuf.readByte();
+            logger.info("scidLen: {}", scidLen);
+            state = State.SCID;
+        case SCID:
+            if (!byteBuf.isReadable()) {
+                return;
+            }
+            final ByteBuf scid = byteBuf.readBytes(scidLen);
+            logger.info("scid: {}", scid);
+        }
 
+        // it will be identified as a Version Negotiation packet based on the Version field having a value of 0
+        if (version == 0) {
+            while (byteBuf.readableBytes() > 0) {
+                ByteBuf versionBytBuf = byteBuf.readBytes(4);
+                logger.info("supported version hexdump: {}", ByteBufUtil.hexDump(versionBytBuf));
+            }
         }
 
         out.add(new QuicMessage(ReferenceCountUtil.retain(byteBuf)));
