@@ -83,18 +83,6 @@ public class BasicQuicTest {
 
         client.close().await();
 
-        final ByteBuf resByteBuf = result.get().duplicate();
-        System.out.println(ByteBufUtil.hexDump(resByteBuf.duplicate()));
-        while (resByteBuf.readableBytes() > 0) {
-            printSingleByte(resByteBuf);
-        }
-        System.out.println();
-
-    }
-
-    private void printSingleByte(ByteBuf resByteBuf) {
-        final byte b = resByteBuf.readByte();
-        System.out.println(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0'));
     }
 
     @Test
