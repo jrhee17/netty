@@ -61,16 +61,6 @@ public class BasicQuicTest {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<ByteBuf> result = new AtomicReference<>();
 
-        final byte[] headerForm = {
-                (byte) ((0x80 & 0xff) + (0x40 & 0xff)),
-                (byte) 0, 0, 0, 0x01,
-                (byte) 0, 0, 0, 0,
-                0, 0, 1, 0
-        };
-
-        final ByteBuf byteBuf = Unpooled.copiedBuffer(headerForm);
-        System.out.println(ByteBufUtil.prettyHexDump(byteBuf));
-
         final InetSocketAddress remote = new InetSocketAddress("quic.tech", 4433);
         final Channel client = getClient(remote, res -> {
             result.set(Unpooled.copiedBuffer(res));
@@ -83,7 +73,6 @@ public class BasicQuicTest {
         assertNotNull(result.get());
 
         client.close().await();
-
     }
 
     @Test
