@@ -4,6 +4,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
@@ -16,8 +17,11 @@ import io.netty.channel.nio.NioHandler;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import org.junit.Test;
 
+import javax.net.ssl.SSLEngine;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -66,8 +70,15 @@ public class BasicQuicTest {
             result.set(Unpooled.copiedBuffer(res));
             latch.countDown();
         });
+        final SslContext sslContext = SslContextBuilder.forClient().protocols("TLSv1.3").build();
+        final SSLEngine sslEngine = sslContext.newEngine(UnpooledByteBufAllocator.DEFAULT);
+        sslEngine.beginHandshake();
+        sslEngine.getSSLParameters();
+
+        final QuicFrame quicFrame = new QuicFrame((byte) 0x06, new byte[]{0}, new byte[] {0}, new byte[]{0});
         client.writeAndFlush(new QuicRequest(remote, 1, 1, 0, 0,
-                                             1, new byte[] {0}, new byte[] {0}, 0, new byte[] {0})).sync();
+                                             0x00000001, new byte[] {0}, new byte[] {0}, 0, new byte[] {0},
+                                             quicFrame)).sync();
 
         latch.await();
         assertNotNull(result.get());

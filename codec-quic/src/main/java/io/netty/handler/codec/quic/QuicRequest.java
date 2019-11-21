@@ -22,9 +22,11 @@ public class QuicRequest extends QuicMessage {
     private final int tokenLength;
     private final byte[] packetNumber;
 
+    private final QuicFrame quicFrame;
+
     public QuicRequest(InetSocketAddress inetSocketAddress, int headerForm, int fixedBit,
                        int longPacketType, int typeSpecificBits, int version, byte[] dcid, byte[] scid, int tokenLength,
-                       byte[] packetNumber) {
+                       byte[] packetNumber, QuicFrame quicFrame) {
         this.inetSocketAddress = inetSocketAddress;
         this.headerForm = headerForm;
         this.fixedBit = fixedBit;
@@ -35,6 +37,7 @@ public class QuicRequest extends QuicMessage {
         this.scid = scid.clone();
         this.tokenLength = tokenLength;
         this.packetNumber = packetNumber.clone();
+        this.quicFrame = quicFrame;
     }
 
     public InetSocketAddress getInetSocketAddress() {
@@ -43,8 +46,8 @@ public class QuicRequest extends QuicMessage {
 
     @Override
     public ByteBuf getByteBuf() {
-        byte header = (byte) (((headerForm & 0x01) << 7) + ((fixedBit & 0x01) << 6) + ((longPacketType & 0x03) << 5) + (typeSpecificBits & 0x0f));
-        System.out.println(header);
+        final byte header = (byte) (((headerForm & 0x01) << 7) + ((fixedBit & 0x01) << 6) + ((longPacketType & 0x03) << 5) + (typeSpecificBits & 0x0f));
+        final ByteBuf frameByteBuf = quicFrame.toByteBuf();
         return Unpooled.buffer()
                        .writeByte(header)
                        .writeInt(version)
@@ -53,8 +56,8 @@ public class QuicRequest extends QuicMessage {
                        .writeByte(scid.length - 1)
                        .writeBytes(scid)
                        .writeByte(tokenLength)
-                       .writeBytes(variableLengthIntegerEncoding(packetNumber.length))
-                       .writeBytes(packetNumber);
+                       .writeBytes(variableLengthIntegerEncoding(packetNumber.length + 1 + frameByteBuf.array().length))
+                       .writeBytes(packetNumber).writeByte(0x01).writeBytes(quicFrame.toByteBuf());
     }
 
     static byte[] variableLengthIntegerEncoding(long length) {
