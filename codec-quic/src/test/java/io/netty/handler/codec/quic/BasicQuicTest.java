@@ -70,10 +70,6 @@ public class BasicQuicTest {
             result.set(Unpooled.copiedBuffer(res));
             latch.countDown();
         });
-        final SslContext sslContext = SslContextBuilder.forClient().protocols("TLSv1.3").build();
-        final SSLEngine sslEngine = sslContext.newEngine(UnpooledByteBufAllocator.DEFAULT);
-        sslEngine.beginHandshake();
-        sslEngine.getSSLParameters();
 
         final QuicFrame quicFrame = new QuicFrame((byte) 0x06, new byte[]{0}, new byte[] {0}, new byte[]{0});
         client.writeAndFlush(new QuicRequest(remote, 1, 1, 0, 0,
