@@ -1,7 +1,5 @@
 package io.netty.handler.codec.quic;
 
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -21,7 +19,8 @@ public class BasicSslTest {
     private volatile SSLEngine clientSslEngine;
     private volatile SSLEngine serverSslEngine;
 
-    private final SelfSignedCertificate ssc = new SelfSignedCertificate();
+    private final SelfSignedCertificate cert = new SelfSignedCertificate();
+    private static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
 
     public BasicSslTest() throws CertificateException {
     }
@@ -30,7 +29,7 @@ public class BasicSslTest {
         if (clientSslEngine == null) {
             synchronized (this) {
                 if (clientSslEngine == null) {
-                    final SslContext sslContext = SslContextBuilder.forClient().trustManager(ssc.cert()).protocols(
+                    final SslContext sslContext = SslContextBuilder.forClient().trustManager(cert.cert()).protocols(
                             "TLSv1.2").build();
                     clientSslEngine = sslContext.newEngine(UnpooledByteBufAllocator.DEFAULT);
                 }
@@ -45,7 +44,7 @@ public class BasicSslTest {
                 if (serverSslEngine == null) {
 
                     final SslContext sslContext = SslContextBuilder.forServer(
-                            ssc.certificate(), ssc.privateKey()).protocols("TLSv1", "TLSv1.1", "TLSv1.2").build();
+                            cert.certificate(), cert.privateKey()).protocols("TLSv1", "TLSv1.1", "TLSv1.2").build();
                     serverSslEngine = sslContext.newEngine(UnpooledByteBufAllocator.DEFAULT);
                 }
             }
@@ -56,16 +55,22 @@ public class BasicSslTest {
     @Test
     public void sandboxSslTest() throws Exception {
 
+        ByteBuffer clientPacketBuf = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
+        ByteBuffer serverPacketBuf = ByteBuffer.allocate(serverSslEngine().getSession().getPacketBufferSize());
+
+        ByteBuffer serverAppBuf = ByteBuffer.allocate(
+                serverSslEngine().getSession().getApplicationBufferSize());
+        ByteBuffer clientAppBuf = ByteBuffer.allocate(
+                clientSslEngine().getSession().getApplicationBufferSize());
+
+        // Start client side handshaking
         assert clientSslEngine().getHandshakeStatus() == HandshakeStatus.NOT_HANDSHAKING;
 
         clientSslEngine().beginHandshake();
 
         assert clientSslEngine().getHandshakeStatus() == HandshakeStatus.NEED_WRAP;
 
-        final int packetBufferSize = clientSslEngine().getSession().getPacketBufferSize();
-        ByteBuffer src = ByteBuffer.allocate(0);
-        ByteBuffer dst = ByteBuffer.allocate(packetBufferSize);
-        SSLEngineResult result = clientSslEngine().wrap(src, dst);
+        SSLEngineResult result = clientSslEngine().wrap(EMPTY_BUFFER, clientPacketBuf);
 
         assert result.getStatus() == Status.OK;
         assert result.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP;
@@ -76,9 +81,9 @@ public class BasicSslTest {
 
         assert serverSslEngine().getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP;
 
-        dst.flip();
-        ByteBuffer dst2 = ByteBuffer.allocate(serverSslEngine().getSession().getApplicationBufferSize());
-        SSLEngineResult serverResult1 = serverSslEngine().unwrap(dst, dst2);
+        clientPacketBuf.flip();
+        SSLEngineResult serverResult1 = serverSslEngine().unwrap(clientPacketBuf, serverAppBuf);
+        clientPacketBuf.compact();
 
         assert serverSslEngine().getHandshakeStatus() == HandshakeStatus.NEED_TASK;
         assert serverResult1.getStatus() == Status.OK;
@@ -90,14 +95,13 @@ public class BasicSslTest {
 
         assert serverSslEngine().getHandshakeStatus() == HandshakeStatus.NEED_WRAP;
 
-        ByteBuffer dst3 = ByteBuffer.allocate(serverSslEngine().getSession().getPacketBufferSize());
-        SSLEngineResult serverResult2 = serverSslEngine().wrap(ByteBuffer.allocate(0), dst3);
+        SSLEngineResult serverResult2 = serverSslEngine().wrap(EMPTY_BUFFER, serverPacketBuf);
 
         assert serverResult2.getStatus() == Status.OK;
 
-        ByteBuffer dst4 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        dst3.flip();
-        SSLEngineResult clientResult2 = clientSslEngine().unwrap(dst3, dst4);
+        serverPacketBuf.flip();
+        SSLEngineResult clientResult2 = clientSslEngine().unwrap(serverPacketBuf, clientAppBuf);
+        serverPacketBuf.compact();
 
         assert clientResult2.getHandshakeStatus() == HandshakeStatus.NEED_TASK;
         assert clientResult2.getStatus() == Status.OK;
@@ -108,27 +112,14 @@ public class BasicSslTest {
 
         assert clientSslEngine().getHandshakeStatus() == HandshakeStatus.NEED_WRAP;
 
-        ByteBuffer dst5 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        SSLEngineResult clientResult3 = clientSslEngine().wrap(ByteBuffer.allocate(0), dst5);
+        SSLEngineResult clientResult3 = clientSslEngine().wrap(EMPTY_BUFFER, clientPacketBuf);
 
         assert clientResult3.getStatus() == Status.OK;
         assert clientResult3.getHandshakeStatus() == HandshakeStatus.NEED_WRAP;
 
-        ByteBuffer dst6 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        SSLEngineResult clientResult4 = clientSslEngine().wrap(ByteBuffer.allocate(0), dst6);
-
-        assert clientResult4.getStatus() == Status.OK;
-        assert clientResult4.getHandshakeStatus() == HandshakeStatus.NEED_WRAP;
-
-        ByteBuffer dst7 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        SSLEngineResult clientResult5 = clientSslEngine().wrap(ByteBuffer.allocate(0), dst7);
-
-        assert clientResult5.getStatus() == Status.OK;
-        assert clientResult5.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP;
-
-        ByteBuffer dst8 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        dst5.flip();
-        SSLEngineResult serverResult3 = serverSslEngine().unwrap(dst5, dst8);
+        clientPacketBuf.flip();
+        SSLEngineResult serverResult3 = serverSslEngine().unwrap(clientPacketBuf, serverAppBuf);
+        clientPacketBuf.compact();
 
         assert serverResult3.getStatus() == Status.OK;
         assert serverResult3.getHandshakeStatus() == HandshakeStatus.NEED_TASK;
@@ -139,41 +130,50 @@ public class BasicSslTest {
 
         assert serverSslEngine().getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP;
 
-        ByteBuffer dst9 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        dst6.flip();
-        SSLEngineResult serverResult4 = serverSslEngine().unwrap(dst6, dst9);
+        SSLEngineResult clientResult4 = clientSslEngine().wrap(EMPTY_BUFFER, clientPacketBuf);
+
+        assert clientResult4.getStatus() == Status.OK;
+        assert clientResult4.getHandshakeStatus() == HandshakeStatus.NEED_WRAP;
+
+        clientPacketBuf.flip();
+        SSLEngineResult serverResult4 = serverSslEngine().unwrap(clientPacketBuf, serverAppBuf);
+        clientPacketBuf.compact();
 
         assert serverResult4.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP;
         assert serverResult4.getStatus() == Status.OK;
 
-        ByteBuffer dst10 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        dst7.flip();
-        SSLEngineResult serverResult5 = serverSslEngine().unwrap(dst7, dst10);
+        SSLEngineResult clientResult5 = clientSslEngine().wrap(EMPTY_BUFFER, clientPacketBuf);
+
+        assert clientResult5.getStatus() == Status.OK;
+        assert clientResult5.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP;
+
+        clientPacketBuf.flip();
+        SSLEngineResult serverResult5 = serverSslEngine().unwrap(clientPacketBuf, serverAppBuf);
+        clientPacketBuf.compact();
 
         assert serverResult5.getStatus() == Status.OK;
+        assert serverResult5.getHandshakeStatus() == HandshakeStatus.NEED_WRAP;
 
-        ByteBuffer dst11 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        SSLEngineResult serverResult6 = serverSslEngine().wrap(ByteBuffer.allocate(0), dst11);
+        SSLEngineResult serverResult6 = serverSslEngine().wrap(EMPTY_BUFFER, serverPacketBuf);
 
         assert serverResult6.getHandshakeStatus() == HandshakeStatus.NEED_WRAP;
         assert serverResult6.getStatus() == Status.OK;
 
-        ByteBuffer dst12 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        SSLEngineResult serverResult7 = serverSslEngine().wrap(ByteBuffer.allocate(0), dst12);
-
-        assert serverResult7.getHandshakeStatus() == HandshakeStatus.FINISHED;
-        assert serverResult7.getStatus() == Status.OK;
-
-        ByteBuffer dst13 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        dst11.flip();
-        SSLEngineResult clientResult6 = clientSslEngine().unwrap(dst11, dst13);
+        serverPacketBuf.flip();
+        SSLEngineResult clientResult6 = clientSslEngine().unwrap(serverPacketBuf, clientAppBuf);
+        serverPacketBuf.compact();
 
         assert clientResult6.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP;
         assert clientResult6.getStatus() == Status.OK;
 
-        ByteBuffer dst14 = ByteBuffer.allocate(clientSslEngine().getSession().getPacketBufferSize());
-        dst12.flip();
-        SSLEngineResult clientResult7 = clientSslEngine().unwrap(dst12, dst14);
+        SSLEngineResult serverResult7 = serverSslEngine().wrap(EMPTY_BUFFER, serverPacketBuf);
+
+        assert serverResult7.getHandshakeStatus() == HandshakeStatus.FINISHED;
+        assert serverResult7.getStatus() == Status.OK;
+
+        serverPacketBuf.flip();
+        SSLEngineResult clientResult7 = clientSslEngine().unwrap(serverPacketBuf, clientAppBuf);
+        serverPacketBuf.compact();
 
         assert clientResult7.getStatus() == Status.OK;
         assert clientResult7.getHandshakeStatus() == HandshakeStatus.FINISHED;
