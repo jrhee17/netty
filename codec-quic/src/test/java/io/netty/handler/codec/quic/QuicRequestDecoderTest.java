@@ -22,7 +22,7 @@ public class QuicRequestDecoderTest {
         final EmbeddedChannel channel = new EmbeddedChannel(new QuicRequestDecoder());
         channel.writeInbound(datagramPacket);
 
-        final QuicMessage quicMessage = (QuicMessage) channel.readInbound();
+        final QuicMessage quicMessage = channel.readInbound();
         System.out.println(quicMessage);
     }
 }

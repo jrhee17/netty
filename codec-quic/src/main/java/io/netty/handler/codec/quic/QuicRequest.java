@@ -87,4 +87,18 @@ public class QuicRequest extends QuicMessage {
             throw new IllegalArgumentException("invalid length: " + length);
         }
     }
+
+    static int variableLengthIntegerDecoding(ByteBuf byteBuf) {
+        if (!byteBuf.isReadable()) {
+            throw new IllegalArgumentException("cannot read varint");
+        }
+        final byte b = byteBuf.readByte();
+        final int varIntLen = (b & 0xff) >> 6;
+        logger.info("varIntLen: {}", varIntLen);
+        if (varIntLen == 0) {
+            return b;
+        }
+
+        return -1;
+    }
 }

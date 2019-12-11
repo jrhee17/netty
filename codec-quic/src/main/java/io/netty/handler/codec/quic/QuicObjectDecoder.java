@@ -66,8 +66,8 @@ public abstract class QuicObjectDecoder extends MessageToMessageDecoder<Datagram
                 return true;
             }
             final ByteBuf versionByteBuf = byteBuf.readBytes(4);
-            version = versionByteBuf.readInt();
-            logger.info("version: {}", version);
+            version = versionByteBuf.copy().readInt();
+            logger.info("version: {}", ByteBufUtil.prettyHexDump(versionByteBuf));
             state = State.DCID_LEN;
         case DCID_LEN:
             if (!byteBuf.isReadable()) {
@@ -77,11 +77,11 @@ public abstract class QuicObjectDecoder extends MessageToMessageDecoder<Datagram
             logger.info("dcidLen: {}", dcidLen);
             state = State.DCID;
         case DCID:
-            if (!byteBuf.isReadable()) {
+            if (!byteBuf.isReadable(dcidLen)) {
                 return true;
             }
             final ByteBuf dcid = byteBuf.readBytes(dcidLen);
-            logger.info("dcid: {}", dcid);
+            logger.info("dcid: {}", ByteBufUtil.prettyHexDump(dcid));
             state = State.SCID_LEN;
         case SCID_LEN:
             if (!byteBuf.isReadable()) {
@@ -91,12 +91,14 @@ public abstract class QuicObjectDecoder extends MessageToMessageDecoder<Datagram
             logger.info("scidLen: {}", scidLen);
             state = State.SCID;
         case SCID:
-            if (!byteBuf.isReadable()) {
+            if (!byteBuf.isReadable(scidLen)) {
                 return true;
             }
             final ByteBuf scid = byteBuf.readBytes(scidLen);
-            logger.info("scid: {}", scid);
+            logger.info("scid: {}", ByteBufUtil.prettyHexDump(scid));
         }
+
+        logger.info("remaining bytes: {}", ByteBufUtil.prettyHexDump(byteBuf));
 
         // it will be identified as a Version Negotiation packet based on the Version field having a value of 0
         if (version == 0) {
