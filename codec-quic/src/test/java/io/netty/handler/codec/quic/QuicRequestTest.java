@@ -19,7 +19,7 @@ public class QuicRequestTest {
     @Test
     public void test1byteDecoding() {
         final ByteBuf byteBuf = Unpooled.copiedBuffer(ByteBufUtil.decodeHexDump("25"));
-        final int result = QuicRequest.variableLengthIntegerDecoding(byteBuf);
+        final long result = QuicRequest.variableLengthIntegerDecoding(byteBuf);
         assertEquals(37, result);
     }
 
@@ -31,6 +31,13 @@ public class QuicRequestTest {
     }
 
     @Test
+    public void test2byteDecoding() {
+        final ByteBuf byteBuf = Unpooled.copiedBuffer(ByteBufUtil.decodeHexDump("7bbd"));
+        final long result = QuicRequest.variableLengthIntegerDecoding(byteBuf);
+        assertEquals(15293, result);
+    }
+
+    @Test
     public void test4byteEncoding() {
         final long length = 494878333;
         final byte[] retval = QuicRequest.variableLengthIntegerEncoding(length);
@@ -38,9 +45,23 @@ public class QuicRequestTest {
     }
 
     @Test
+    public void test4byteDecoding() {
+        final ByteBuf byteBuf = Unpooled.copiedBuffer(ByteBufUtil.decodeHexDump("9d7f3e7d"));
+        final long result = QuicRequest.variableLengthIntegerDecoding(byteBuf);
+        assertEquals(494878333, result);
+    }
+
+    @Test
     public void test8byteEncoding() {
         final long length = 151288809941952652L;
         final byte[] retval = QuicRequest.variableLengthIntegerEncoding(length);
         assertEquals("c2197c5eff14e88c", ByteBufUtil.hexDump(retval));
+    }
+
+    @Test
+    public void test8byteDecoding() {
+        final ByteBuf byteBuf = Unpooled.copiedBuffer(ByteBufUtil.decodeHexDump("c2197c5eff14e88c"));
+        final long result = QuicRequest.variableLengthIntegerDecoding(byteBuf);
+        assertEquals(151288809941952652L, result);
     }
 }

@@ -88,17 +88,36 @@ public class QuicRequest extends QuicMessage {
         }
     }
 
-    static int variableLengthIntegerDecoding(ByteBuf byteBuf) {
+    static long variableLengthIntegerDecoding(ByteBuf byteBuf) {
         if (!byteBuf.isReadable()) {
             throw new IllegalArgumentException("cannot read varint");
         }
-        final byte b = byteBuf.readByte();
-        final int varIntLen = (b & 0xff) >> 6;
-        logger.info("varIntLen: {}", varIntLen);
+        final byte b1 = byteBuf.readByte();
+        final int varIntLen = (b1 & 0xff) >> 6;
         if (varIntLen == 0) {
-            return b;
+            return b1 & 0xff >> 2;
         }
-
-        return -1;
+        if (varIntLen == 1) {
+            final byte[] bytes = {b1, byteBuf.readByte()};
+            return (bytes[0] & 0xff >> 2) << 8 | bytes[1] & 0xff;
+        }
+        if (varIntLen == 2) {
+            final byte[] bytes = {b1, byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte()};
+            return (bytes[0] & 0xff >> 2) << 24 | (bytes[1] & 0xff) << 16 |
+                            (bytes[2] & 0xff) << 8 | bytes[3] & 0xff;
+        }
+        if (varIntLen == 3) {
+            final byte[] bytes = {b1, byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte(),
+                    byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte()};
+            return Long.valueOf(bytes[0] & 0xff >> 2) << 56 |
+                             Long.valueOf(bytes[1] & 0xff) << 48 |
+                             Long.valueOf(bytes[2] & 0xff) << 40 |
+                             Long.valueOf(bytes[3] & 0xff) << 32 |
+                             Long.valueOf(bytes[4] & 0xff) << 24 |
+                             Long.valueOf(bytes[5] & 0xff) << 16 |
+                             Long.valueOf(bytes[6] & 0xff) << 8 |
+                   Long.valueOf(bytes[7] & 0xff);
+        }
+        throw new IllegalArgumentException("invalid length: " + varIntLen);
     }
 }
