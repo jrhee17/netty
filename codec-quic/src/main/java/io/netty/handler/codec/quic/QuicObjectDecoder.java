@@ -17,6 +17,10 @@ public abstract class QuicObjectDecoder extends MessageToMessageDecoder<Datagram
         DCID,
         SCID_LEN,
         SCID,
+        TOKEN_LEN,
+        TOKEN,
+        LENGTH,
+        PAYLOAD,
     }
 
     static int typeSpecificBits(byte b) {
@@ -35,10 +39,16 @@ public abstract class QuicObjectDecoder extends MessageToMessageDecoder<Datagram
         return (b & 0x80) >> 7 == 1;
     }
 
+    private int packetNumLength;
+
     private State state = State.INITIAL;
     private int dcidLen;
     private int scidLen;
     private int version;
+    private int tokenLen;
+    private ByteBuf token;
+    private int payloadLength;
+    private ByteBuf payload;
 
     protected boolean parseLongPacketHeader(ByteBuf byteBuf) {
         switch (state) {
@@ -58,8 +68,9 @@ public abstract class QuicObjectDecoder extends MessageToMessageDecoder<Datagram
             final boolean fixedBit = fixedBit(headerByte);
             final short longPacketType = longPacketType(headerByte);
             final int typeSpecificBits = typeSpecificBits(headerByte);
-            logger.info("headerForm: {}, fixedBit: {}, longPacketType: {}, typeSpecificBits: {}",
-                        headerForm, fixedBit, longPacketType, typeSpecificBits);
+            packetNumLength = headerByte & 0x3 + 1;
+            logger.info("headerForm: {}, fixedBit: {}, longPacketType: {}, typeSpecificBits: {}, packetNumLength: {}",
+                        headerForm, fixedBit, longPacketType, typeSpecificBits, packetNumLength);
             state = State.HEADER;
         case HEADER:
             if (!byteBuf.isReadable(4)) {
@@ -96,7 +107,40 @@ public abstract class QuicObjectDecoder extends MessageToMessageDecoder<Datagram
             }
             final ByteBuf scid = byteBuf.readBytes(scidLen);
             logger.info("scid: {}", ByteBufUtil.prettyHexDump(scid));
+        case TOKEN_LEN:
+            if (!byteBuf.isReadable()) {
+                return true;
+            }
+            tokenLen = (int) QuicRequest.variableLengthIntegerDecoding(byteBuf);
+            logger.info("tokenLen: {}", tokenLen);
+        case TOKEN:
+            if (!byteBuf.isReadable(tokenLen)) {
+                return true;
+            }
+            token = byteBuf.readBytes(tokenLen);
+            logger.info("token: {}", token);
+        case LENGTH:
+            if (!byteBuf.isReadable()) {
+                return true;
+            }
+            payloadLength = (int) QuicRequest.variableLengthIntegerDecoding(byteBuf);
+            logger.info("payloadLength: {}", payloadLength);
+        case PAYLOAD:
+            if (!byteBuf.isReadable(payloadLength)) {
+                return true;
+            }
+            payload = byteBuf.readBytes(payloadLength);
+            logger.info("payload: {}", ByteBufUtil.prettyHexDump(payload));
         }
+
+        ByteBuf copiedPayload = payload.copy();
+        ByteBuf packetNumber = copiedPayload.readBytes(packetNumLength);
+        logger.info("packetNumber: {}", ByteBufUtil.prettyHexDump(packetNumber));
+
+        logger.info("first byte: {}", Integer.toBinaryString(copiedPayload.getByte(copiedPayload.readerIndex()) & 0xff));
+        logger.info("first byte: {}", Integer.toHexString(copiedPayload.getByte(copiedPayload.readerIndex()) & 0xff));
+        int firstFrameType = (int) QuicRequest.variableLengthIntegerDecoding(copiedPayload);
+        logger.info("firstFrameType: {}", firstFrameType);
 
         logger.info("remaining bytes: {}", ByteBufUtil.prettyHexDump(byteBuf));
 
