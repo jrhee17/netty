@@ -22,9 +22,11 @@ public class QuicRequest extends QuicMessage {
     private final int tokenLength;
     private final byte[] packetNumber;
 
+    private final QuicFrame quicFrame;
+
     public QuicRequest(InetSocketAddress inetSocketAddress, int headerForm, int fixedBit,
                        int longPacketType, int typeSpecificBits, int version, byte[] dcid, byte[] scid, int tokenLength,
-                       byte[] packetNumber) {
+                       byte[] packetNumber, QuicFrame quicFrame) {
         this.inetSocketAddress = inetSocketAddress;
         this.headerForm = headerForm;
         this.fixedBit = fixedBit;
@@ -35,6 +37,7 @@ public class QuicRequest extends QuicMessage {
         this.scid = scid.clone();
         this.tokenLength = tokenLength;
         this.packetNumber = packetNumber.clone();
+        this.quicFrame = quicFrame;
     }
 
     public InetSocketAddress getInetSocketAddress() {
@@ -43,8 +46,8 @@ public class QuicRequest extends QuicMessage {
 
     @Override
     public ByteBuf getByteBuf() {
-        byte header = (byte) (((headerForm & 0x01) << 7) + ((fixedBit & 0x01) << 6) + ((longPacketType & 0x03) << 5) + (typeSpecificBits & 0x0f));
-        System.out.println(header);
+        final byte header = (byte) (((headerForm & 0x01) << 7) + ((fixedBit & 0x01) << 6) + ((longPacketType & 0x03) << 5) + (typeSpecificBits & 0x0f));
+        final ByteBuf frameByteBuf = quicFrame.toByteBuf();
         return Unpooled.buffer()
                        .writeByte(header)
                        .writeInt(version)
@@ -53,8 +56,8 @@ public class QuicRequest extends QuicMessage {
                        .writeByte(scid.length - 1)
                        .writeBytes(scid)
                        .writeByte(tokenLength)
-                       .writeBytes(variableLengthIntegerEncoding(packetNumber.length))
-                       .writeBytes(packetNumber);
+                       .writeBytes(variableLengthIntegerEncoding(packetNumber.length + 1 + frameByteBuf.array().length))
+                       .writeBytes(packetNumber).writeByte(0x01).writeBytes(quicFrame.toByteBuf());
     }
 
     static byte[] variableLengthIntegerEncoding(long length) {
@@ -83,5 +86,38 @@ public class QuicRequest extends QuicMessage {
         } else {
             throw new IllegalArgumentException("invalid length: " + length);
         }
+    }
+
+    static long variableLengthIntegerDecoding(ByteBuf byteBuf) {
+        if (!byteBuf.isReadable()) {
+            throw new IllegalArgumentException("cannot read varint");
+        }
+        final byte b1 = byteBuf.readByte();
+        final int varIntLen = (b1 & 0xff) >> 6;
+        if (varIntLen == 0) {
+            return b1 & 0xff >> 2;
+        }
+        if (varIntLen == 1) {
+            final byte[] bytes = {b1, byteBuf.readByte()};
+            return (bytes[0] & 0xff >> 2) << 8 | bytes[1] & 0xff;
+        }
+        if (varIntLen == 2) {
+            final byte[] bytes = {b1, byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte()};
+            return (bytes[0] & 0xff >> 2) << 24 | (bytes[1] & 0xff) << 16 |
+                            (bytes[2] & 0xff) << 8 | bytes[3] & 0xff;
+        }
+        if (varIntLen == 3) {
+            final byte[] bytes = {b1, byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte(),
+                    byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte()};
+            return Long.valueOf(bytes[0] & 0xff >> 2) << 56 |
+                             Long.valueOf(bytes[1] & 0xff) << 48 |
+                             Long.valueOf(bytes[2] & 0xff) << 40 |
+                             Long.valueOf(bytes[3] & 0xff) << 32 |
+                             Long.valueOf(bytes[4] & 0xff) << 24 |
+                             Long.valueOf(bytes[5] & 0xff) << 16 |
+                             Long.valueOf(bytes[6] & 0xff) << 8 |
+                   Long.valueOf(bytes[7] & 0xff);
+        }
+        throw new IllegalArgumentException("invalid length: " + varIntLen);
     }
 }

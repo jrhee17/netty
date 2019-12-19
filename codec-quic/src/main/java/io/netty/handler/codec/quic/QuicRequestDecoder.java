@@ -7,16 +7,15 @@ import io.netty.util.ReferenceCountUtil;
 
 import java.util.List;
 
-public class QuicResponseDecoder extends QuicObjectDecoder {
-
+public class QuicRequestDecoder extends QuicObjectDecoder {
     @Override
     protected void decode(ChannelHandlerContext ctx, DatagramPacket msg, List<Object> out) throws Exception {
-        final ByteBuf byteBuf = msg.content();
 
-        if (parseLongPacketHeader(byteBuf)) {
+        final ByteBuf content = msg.content();
+        if (parseLongPacketHeader(content)) {
             return;
         }
 
-        out.add(new QuicMessage(ReferenceCountUtil.retain(byteBuf)));
+        out.add(new QuicMessage(ReferenceCountUtil.retain(msg.content())));
     }
 }
