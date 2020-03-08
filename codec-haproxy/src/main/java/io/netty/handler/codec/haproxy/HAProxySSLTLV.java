@@ -69,6 +69,9 @@ public final class HAProxySSLTLV extends HAProxyTLV {
         return (clientBitField & 0x4) != 0;
     }
 
+    public byte client() {
+        return clientBitField;
+    }
     /**
      * Returns the verification result
      */

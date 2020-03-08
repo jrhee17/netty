@@ -30,6 +30,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static java.util.Objects.*;
+
 /**
  * Message container for decoded HAProxy proxy protocol parameters
  */
@@ -50,7 +52,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     /**
      * Creates a new instance
      */
-    private HAProxyMessage(
+    HAProxyMessage(
             HAProxyProtocolVersion protocolVersion, HAProxyCommand command, HAProxyProxiedProtocol proxiedProtocol,
             String sourceAddress, String destinationAddress, String sourcePort, String destinationPort) {
         this(
@@ -61,7 +63,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     /**
      * Creates a new instance
      */
-    private HAProxyMessage(
+    HAProxyMessage(
             HAProxyProtocolVersion protocolVersion, HAProxyCommand command, HAProxyProxiedProtocol proxiedProtocol,
             String sourceAddress, String destinationAddress, int sourcePort, int destinationPort) {
 
@@ -72,7 +74,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     /**
      * Creates a new instance
      */
-    private HAProxyMessage(
+    HAProxyMessage(
             HAProxyProtocolVersion protocolVersion, HAProxyCommand command, HAProxyProxiedProtocol proxiedProtocol,
             String sourceAddress, String destinationAddress, int sourcePort, int destinationPort,
             List<HAProxyTLV> tlvs) {
@@ -82,8 +84,8 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
 
         checkAddress(sourceAddress, addrFamily);
         checkAddress(destinationAddress, addrFamily);
-        checkPort(sourcePort);
-        checkPort(destinationPort);
+        checkPort(sourcePort, addrFamily);
+        checkPort(destinationPort, addrFamily);
 
         this.protocolVersion = protocolVersion;
         this.command = command;
@@ -407,6 +409,9 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
                 }
                 return;
             case AF_UNIX:
+                if (address != null && address.getBytes(CharsetUtil.US_ASCII).length > 108) {
+                    throw new HAProxyProtocolException("too long AF_UNIX address: " + address);
+                }
                 return;
         }
 
@@ -429,14 +434,27 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     }
 
     /**
-     * Validate a UDP/TCP port
+     * Validate a HAProxy port
      *
      * @param port                       the UDP/TCP port
      * @throws HAProxyProtocolException  if the port is out of range (0-65535 inclusive)
      */
-    private static void checkPort(int port) {
-        if (port < 0 || port > 65535) {
-            throw new HAProxyProtocolException("invalid port: " + port + " (expected: 1 ~ 65535)");
+    private static void checkPort(int port, AddressFamily addrFamily) {
+        switch (addrFamily) {
+        case AF_IPv6:
+        case AF_IPv4:
+            if (port < 0 || port > 65535) {
+                throw new HAProxyProtocolException("invalid port: " + port + " (expected: 1 ~ 65535)");
+            }
+            break;
+        case AF_UNIX:
+        case AF_UNSPEC:
+            if (port != 0) {
+                throw new HAProxyProtocolException("unix port cannot be specified");
+            }
+            break;
+        default:
+            throw new Error();
         }
     }
 
