@@ -210,7 +210,7 @@ public class HaProxyMessageEncoderTest {
         HAProxyMessageEncoder encoder = new HAProxyMessageEncoder();
         EmbeddedChannel ch = new EmbeddedChannel(encoder);
 
-        List<HAProxyTLV> tlvs = new ArrayList<>();
+        List<HAProxyTLV> tlvs = new ArrayList<HAProxyTLV>();
 
         ByteBuf helloWorld = Unpooled.copiedBuffer("hello world", CharsetUtil.US_ASCII);
         HAProxyTLV alpnTlv = new HAProxyTLV(Type.PP2_TYPE_ALPN, (byte) 0x01, helloWorld.copy());
@@ -246,7 +246,7 @@ public class HaProxyMessageEncoderTest {
         HAProxyMessageEncoder encoder = new HAProxyMessageEncoder();
         EmbeddedChannel ch = new EmbeddedChannel(encoder);
 
-        List<HAProxyTLV> tlvs = new ArrayList<>();
+        List<HAProxyTLV> tlvs = new ArrayList<HAProxyTLV>();
 
         ByteBuf helloWorld = Unpooled.copiedBuffer("hello world", CharsetUtil.US_ASCII);
         HAProxyTLV alpnTlv = new HAProxyTLV(Type.PP2_TYPE_ALPN, (byte) 0x01, helloWorld.copy());
@@ -283,7 +283,7 @@ public class HaProxyMessageEncoderTest {
         HAProxyMessageEncoder encoder = new HAProxyMessageEncoder();
         EmbeddedChannel ch = new EmbeddedChannel(encoder);
 
-        List<HAProxyTLV> tlvs = new ArrayList<>();
+        List<HAProxyTLV> tlvs = new ArrayList<HAProxyTLV>();
 
         ByteBuf helloWorld = Unpooled.copiedBuffer("hello world", CharsetUtil.US_ASCII);
         HAProxyTLV alpnTlv = new HAProxyTLV(Type.PP2_TYPE_ALPN, (byte) 0x01, helloWorld.copy());
@@ -320,7 +320,7 @@ public class HaProxyMessageEncoderTest {
         HAProxyMessageEncoder encoder = new HAProxyMessageEncoder();
         EmbeddedChannel ch = new EmbeddedChannel(encoder);
 
-        List<HAProxyTLV> tlvs = new ArrayList<>();
+        List<HAProxyTLV> tlvs = new ArrayList<HAProxyTLV>();
 
 
         ByteBuf helloWorld = Unpooled.copiedBuffer("hello world", CharsetUtil.US_ASCII);
@@ -337,7 +337,7 @@ public class HaProxyMessageEncoderTest {
         HAProxyMessage message = new HAProxyMessage(
                 HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
                 "192.168.0.1", "192.168.0.11", 56324, 443,
-                Collections.singletonList(haProxySSLTLV));
+                Collections.<HAProxyTLV>singletonList(haProxySSLTLV));
         assertTrue(ch.writeOutbound(message));
 
         ByteBuf byteBuf = ch.readOutbound();

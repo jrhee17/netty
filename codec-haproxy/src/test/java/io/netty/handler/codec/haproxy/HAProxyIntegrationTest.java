@@ -21,12 +21,11 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.MultithreadEventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.local.LocalAddress;
 import io.netty.channel.local.LocalChannel;
-import io.netty.channel.local.LocalHandler;
 import io.netty.channel.local.LocalServerChannel;
 import org.junit.Test;
 
@@ -41,9 +40,9 @@ public class HAProxyIntegrationTest {
     @Test
     public void testBasicCase() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<HAProxyMessage> msgHolder = new AtomicReference<>();
+        final AtomicReference<HAProxyMessage> msgHolder = new AtomicReference<HAProxyMessage>();
 
-        EventLoopGroup group = new MultithreadEventLoopGroup(LocalHandler.newFactory());
+        EventLoopGroup group = new DefaultEventLoopGroup();
         ServerBootstrap sb = new ServerBootstrap();
         sb.channel(LocalServerChannel.class)
           .group(group)
@@ -53,7 +52,7 @@ public class HAProxyIntegrationTest {
                   ch.pipeline().addLast(new HAProxyMessageDecoder());
                   ch.pipeline().addLast(new SimpleChannelInboundHandler<HAProxyMessage>() {
                       @Override
-                      protected void messageReceived(ChannelHandlerContext ctx, HAProxyMessage msg) throws Exception {
+                      protected void channelRead0(ChannelHandlerContext ctx, HAProxyMessage msg) throws Exception {
                           msgHolder.set(msg);
                           latch.countDown();
                       }
@@ -76,7 +75,15 @@ public class HAProxyIntegrationTest {
         clientChannel.writeAndFlush(message);
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
-        assertEquals(message, msgHolder.get());
+        HAProxyMessage readMessage = msgHolder.get();
+
+        assertEquals(message.protocolVersion(), readMessage.protocolVersion());
+        assertEquals(message.command(), readMessage.command());
+        assertEquals(message.proxiedProtocol(), readMessage.proxiedProtocol());
+        assertEquals(message.sourceAddress(), readMessage.sourceAddress());
+        assertEquals(message.destinationAddress(), readMessage.destinationAddress());
+        assertEquals(message.sourcePort(), readMessage.sourcePort());
+        assertEquals(message.destinationPort(), readMessage.destinationPort());
     }
 
 }
