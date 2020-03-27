@@ -86,4 +86,16 @@ public final class HAProxySSLTLV extends HAProxyTLV {
         return tlvs;
     }
 
+    @Override
+    public int size() {
+        return 3 + contentSize();
+    }
+
+    public int contentSize() {
+        int sz = 0;
+        for (int i = 0; i < tlvs.size(); i++) {
+            sz += tlvs.get(i).size();
+        }
+        return 5 + sz;
+    }
 }

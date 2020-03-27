@@ -30,8 +30,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static java.util.Objects.*;
-
 /**
  * Message container for decoded HAProxy proxy protocol parameters
  */
@@ -514,6 +512,14 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
      */
     public List<HAProxyTLV> tlvs() {
         return tlvs;
+    }
+
+    int tlvSize() {
+        int sz = 0;
+        for (int i = 0; i < tlvs.size(); i++) {
+            sz += tlvs.get(i).size();
+        }
+        return sz;
     }
 
     @Override

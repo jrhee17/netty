@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static io.netty.handler.codec.haproxy.HAProxyMessageEncoder.*;
-import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
 public class HaProxyMessageEncoderTest {
@@ -227,7 +226,7 @@ public class HaProxyMessageEncoderTest {
 
         ByteBuf byteBuf = ch.readOutbound();
 
-        assertThat(byteBuf.readableBytes(), greaterThan(V2_HEADER_BYTES_LENGTH + IPv4_ADDRESS_BYTES_LENGTH));
+        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - 16);
 
         ByteBuf tlv = byteBuf.skipBytes(V2_HEADER_BYTES_LENGTH + IPv4_ADDRESS_BYTES_LENGTH);
         assertEquals(alpnTlv.typeByteValue(), tlv.readByte());
@@ -264,7 +263,7 @@ public class HaProxyMessageEncoderTest {
 
         ByteBuf byteBuf = ch.readOutbound();
 
-        assertThat(byteBuf.readableBytes(), greaterThan(V2_HEADER_BYTES_LENGTH + IPv6_ADDRESS_BYTES_LENGTH));
+        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - 16);
 
         ByteBuf tlv = byteBuf.skipBytes(V2_HEADER_BYTES_LENGTH + IPv6_ADDRESS_BYTES_LENGTH);
         assertEquals(alpnTlv.typeByteValue(), tlv.readByte());
@@ -301,7 +300,7 @@ public class HaProxyMessageEncoderTest {
 
         ByteBuf byteBuf = ch.readOutbound();
 
-        assertThat(byteBuf.readableBytes(), greaterThan(V2_HEADER_BYTES_LENGTH + UNIX_ADDRESS_BYTES_LENGTH));
+        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - 16);
 
         ByteBuf tlv = byteBuf.skipBytes(V2_HEADER_BYTES_LENGTH + UNIX_ADDRESS_BYTES_LENGTH);
         assertEquals(alpnTlv.typeByteValue(), tlv.readByte());
@@ -342,7 +341,9 @@ public class HaProxyMessageEncoderTest {
 
         ByteBuf byteBuf = ch.readOutbound();
 
-        assertThat(byteBuf.readableBytes(), greaterThan(V2_HEADER_BYTES_LENGTH + IPv4_ADDRESS_BYTES_LENGTH));
+        System.out.println(ByteBufUtil.prettyHexDump(byteBuf));
+
+        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - 16);
         ByteBuf tlv = byteBuf.skipBytes(V2_HEADER_BYTES_LENGTH + IPv4_ADDRESS_BYTES_LENGTH);
 
         assertEquals(haProxySSLTLV.typeByteValue(), tlv.readByte());

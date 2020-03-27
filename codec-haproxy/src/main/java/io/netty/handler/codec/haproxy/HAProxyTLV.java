@@ -32,6 +32,10 @@ public class HAProxyTLV extends DefaultByteBufHolder {
     private final Type type;
     private final byte typeByteValue;
 
+    public int size() {
+        return 3 + content().readableBytes();
+    }
+
     /**
      * The registered types a TLV can have regarding the PROXY protocol 1.5 spec
      */

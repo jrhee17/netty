@@ -16,7 +16,6 @@
 package io.netty.handler.codec.haproxy;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol.AddressFamily;
@@ -58,44 +57,46 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
     @Override
     protected void encode(ChannelHandlerContext ctx, HAProxyMessage msg, ByteBuf out) throws Exception {
         if (msg.protocolVersion() == HAProxyProtocolVersion.V1) {
-            encoderHeader(msg, out);
+            encodeV1(msg, out);
         }
         else {
             out.writeBytes(BINARY_PREFIX);
             out.writeByte(0x02 << 4 | msg.command().byteValue());
             out.writeByte(msg.proxiedProtocol().byteValue());
+
+            int tlvSize = msg.tlvSize();
+
             List<HAProxyTLV> tlvs = msg.tlvs();
-            ByteBuf encodedTlvs = encodeTlvs(tlvs);
             if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_IPv4) {
-                out.writeShort(IPv4_ADDRESS_BYTES_LENGTH + encodedTlvs.readableBytes());
+                out.writeShort(IPv4_ADDRESS_BYTES_LENGTH + tlvSize);
                 out.writeBytes(NetUtil.createByteArrayFromIpAddressString(msg.sourceAddress()));
                 out.writeBytes(NetUtil.createByteArrayFromIpAddressString(msg.destinationAddress()));
                 out.writeShort(msg.sourcePort());
                 out.writeShort(msg.destinationPort());
-                out.writeBytes(encodedTlvs);
+                encodeTlvs(tlvs, out);
             } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_IPv6) {
-                out.writeShort(IPv6_ADDRESS_BYTES_LENGTH + encodedTlvs.readableBytes());
+                out.writeShort(IPv6_ADDRESS_BYTES_LENGTH + tlvSize);
                 out.writeBytes(NetUtil.getByName(msg.sourceAddress()).getAddress());
                 out.writeBytes(NetUtil.getByName(msg.destinationAddress()).getAddress());
                 out.writeShort(msg.sourcePort());
                 out.writeShort(msg.destinationPort());
-                out.writeBytes(encodedTlvs);
+                encodeTlvs(tlvs, out);
             } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_UNIX) {
-                out.writeShort(UNIX_ADDRESS_BYTES_LENGTH + encodedTlvs.readableBytes());
+                out.writeShort(UNIX_ADDRESS_BYTES_LENGTH + tlvSize);
                 byte[] srcAddressBytes = msg.sourceAddress().getBytes(CharsetUtil.US_ASCII);
                 out.writeBytes(srcAddressBytes);
                 out.writeBytes(new byte[108 - srcAddressBytes.length]);
                 byte[] dstAddressBytes = msg.destinationAddress().getBytes(CharsetUtil.US_ASCII);
                 out.writeBytes(dstAddressBytes);
                 out.writeBytes(new byte[108 - dstAddressBytes.length]);
-                out.writeBytes(encodedTlvs);
+                encodeTlvs(tlvs, out);
             } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_UNSPEC) {
                 out.writeShort(0);
             }
         }
     }
 
-    void encoderHeader(HAProxyMessage msg, ByteBuf out) {
+    void encodeV1(HAProxyMessage msg, ByteBuf out) {
         final String protocol = msg.proxiedProtocol().name();
         StringBuilder sb = new StringBuilder(108)
                 .append("PROXY ").append(protocol).append(' ')
@@ -105,38 +106,30 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
         out.writeBytes(sb.toString().getBytes(CharsetUtil.US_ASCII));
     }
 
-    ByteBuf encodeTlv(HAProxyTLV haProxyTLV) {
+    void encodeTlv(HAProxyTLV haProxyTLV, ByteBuf out) {
         if (haProxyTLV instanceof HAProxySSLTLV) {
             HAProxySSLTLV ssltlv = (HAProxySSLTLV) haProxyTLV;
-            ByteBuf buffer = Unpooled.buffer();
-            buffer.writeByte(haProxyTLV.typeByteValue());
+            out.writeByte(haProxyTLV.typeByteValue());
 
             byte client = ssltlv.client();
             int verify = ssltlv.verify();
-            ByteBuf innerTlvBuf = encodeTlvs(ssltlv.encapsulatedTLVs());
 
-            buffer.writeShort(1 + 4 + innerTlvBuf.readableBytes());
-            buffer.writeByte(client);
-            buffer.writeInt(verify);
-            buffer.writeBytes(innerTlvBuf);
-
-            return buffer;
+            out.writeShort(ssltlv.contentSize());
+            out.writeByte(client);
+            out.writeInt(verify);
+            encodeTlvs(ssltlv.encapsulatedTLVs(), out);
         } else {
-            ByteBuf buffer = Unpooled.buffer();
-            buffer.writeByte(haProxyTLV.typeByteValue());
+            out.writeByte(haProxyTLV.typeByteValue());
             ByteBuf value = haProxyTLV.content();
             int readableBytes = value.readableBytes();
-            buffer.writeShort(readableBytes);
-            buffer.writeBytes(value.readSlice(readableBytes));
-            return buffer;
+            out.writeShort(readableBytes);
+            out.writeBytes(value.readSlice(readableBytes));
         }
     }
 
-    ByteBuf encodeTlvs(List<HAProxyTLV> haProxyTLVs) {
-        ByteBuf byteBuf = Unpooled.buffer();
+    void encodeTlvs(List<HAProxyTLV> haProxyTLVs, ByteBuf out) {
         for (HAProxyTLV tlv: haProxyTLVs) {
-            byteBuf.writeBytes(encodeTlv(tlv));
+            encodeTlv(tlv, out);
         }
-        return byteBuf;
     }
 }
