@@ -58,7 +58,7 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
     @Override
     protected void encode(ChannelHandlerContext ctx, HAProxyMessage msg, ByteBuf out) throws Exception {
         if (msg.protocolVersion() == HAProxyProtocolVersion.V1) {
-            out.writeBytes(encoderHeader(msg).getBytes(CharsetUtil.US_ASCII));
+            encoderHeader(msg, out);
         }
         else {
             out.writeBytes(BINARY_PREFIX);
@@ -95,10 +95,14 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
         }
     }
 
-    String encoderHeader(HAProxyMessage msg) {
+    void encoderHeader(HAProxyMessage msg, ByteBuf out) {
         final String protocol = msg.proxiedProtocol().name();
-        return "PROXY " + protocol + ' ' + msg.sourceAddress() + ' ' + msg.destinationAddress() +
-               ' ' + msg.sourcePort() + ' ' + msg.destinationPort() + "\r\n";
+        StringBuilder sb = new StringBuilder(108)
+                .append("PROXY ").append(protocol).append(' ')
+                .append(msg.sourceAddress()).append(' ')
+                .append(msg.destinationAddress()).append(' ')
+                .append(msg.sourcePort()).append(' ').append(msg.destinationPort()).append("\r\n");
+        out.writeBytes(sb.toString().getBytes(CharsetUtil.US_ASCII));
     }
 
     ByteBuf encodeTlv(HAProxyTLV haProxyTLV) {
