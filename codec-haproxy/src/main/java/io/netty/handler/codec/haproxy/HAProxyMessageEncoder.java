@@ -65,32 +65,29 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
         out.writeByte(V2_VERSION_BITMASK | msg.command().byteValue());
         out.writeByte(msg.proxiedProtocol().byteValue());
 
-        int tlvSize = msg.tlvSize();
-
-        List<HAProxyTLV> tlvs = msg.tlvs();
         if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_IPv4) {
-            out.writeShort(IPv4_ADDRESS_BYTES_LENGTH + tlvSize);
+            out.writeShort(IPv4_ADDRESS_BYTES_LENGTH + msg.tlvSize());
             out.writeBytes(NetUtil.createByteArrayFromIpAddressString(msg.sourceAddress()));
             out.writeBytes(NetUtil.createByteArrayFromIpAddressString(msg.destinationAddress()));
             out.writeShort(msg.sourcePort());
             out.writeShort(msg.destinationPort());
-            encodeTlvs(tlvs, out);
+            encodeTlvs(msg.tlvs(), out);
         } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_IPv6) {
-            out.writeShort(IPv6_ADDRESS_BYTES_LENGTH + tlvSize);
+            out.writeShort(IPv6_ADDRESS_BYTES_LENGTH + msg.tlvSize());
             out.writeBytes(NetUtil.getByName(msg.sourceAddress()).getAddress());
             out.writeBytes(NetUtil.getByName(msg.destinationAddress()).getAddress());
             out.writeShort(msg.sourcePort());
             out.writeShort(msg.destinationPort());
-            encodeTlvs(tlvs, out);
+            encodeTlvs(msg.tlvs(), out);
         } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_UNIX) {
-            out.writeShort(UNIX_ADDRESS_BYTES_LENGTH + tlvSize);
+            out.writeShort(UNIX_ADDRESS_BYTES_LENGTH + msg.tlvSize());
             byte[] srcAddressBytes = msg.sourceAddress().getBytes(CharsetUtil.US_ASCII);
             out.writeBytes(srcAddressBytes);
             out.writeBytes(new byte[108 - srcAddressBytes.length]);
             byte[] dstAddressBytes = msg.destinationAddress().getBytes(CharsetUtil.US_ASCII);
             out.writeBytes(dstAddressBytes);
             out.writeBytes(new byte[108 - dstAddressBytes.length]);
-            encodeTlvs(tlvs, out);
+            encodeTlvs(msg.tlvs(), out);
         } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_UNSPEC) {
             out.writeShort(0);
         }
