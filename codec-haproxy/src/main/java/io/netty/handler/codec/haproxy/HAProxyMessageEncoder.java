@@ -58,8 +58,7 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
     protected void encode(ChannelHandlerContext ctx, HAProxyMessage msg, ByteBuf out) throws Exception {
         if (msg.protocolVersion() == HAProxyProtocolVersion.V1) {
             encodeV1(msg, out);
-        }
-        else {
+        } else {
             out.writeBytes(BINARY_PREFIX);
             out.writeByte(0x02 << 4 | msg.command().byteValue());
             out.writeByte(msg.proxiedProtocol().byteValue());

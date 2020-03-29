@@ -80,7 +80,8 @@ public class HaProxyMessageEncoderTest {
 
         // header
         byte[] headerBytes = ByteBufUtil.getBytes(byteBuf, 0, 12);
-        assertArrayEquals(headerBytes, new byte[] {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A});
+        assertArrayEquals(headerBytes,
+                          new byte[] {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A});
 
         // command
         byte commandByte = byteBuf.getByte(12);
@@ -127,7 +128,8 @@ public class HaProxyMessageEncoderTest {
 
         // header
         byte[] headerBytes = ByteBufUtil.getBytes(byteBuf, 0, 12);
-        assertArrayEquals(headerBytes, new byte[] {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A});
+        assertArrayEquals(headerBytes,
+                          new byte[] {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A});
 
         // command
         byte commandByte = byteBuf.getByte(12);
@@ -177,7 +179,8 @@ public class HaProxyMessageEncoderTest {
 
         // header
         byte[] headerBytes = ByteBufUtil.getBytes(byteBuf, 0, 12);
-        assertArrayEquals(headerBytes, new byte[] {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A});
+        assertArrayEquals(headerBytes,
+                          new byte[] {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A});
 
         // command
         byte commandByte = byteBuf.getByte(12);
@@ -320,7 +323,6 @@ public class HaProxyMessageEncoderTest {
         EmbeddedChannel ch = new EmbeddedChannel(encoder);
 
         List<HAProxyTLV> tlvs = new ArrayList<HAProxyTLV>();
-
 
         ByteBuf helloWorld = Unpooled.copiedBuffer("hello world", CharsetUtil.US_ASCII);
         HAProxyTLV alpnTlv = new HAProxyTLV(Type.PP2_TYPE_ALPN, (byte) 0x01, helloWorld.copy());
