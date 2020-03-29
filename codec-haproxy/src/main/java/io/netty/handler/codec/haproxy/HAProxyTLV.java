@@ -18,6 +18,7 @@ package io.netty.handler.codec.haproxy;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.DefaultByteBufHolder;
+import io.netty.util.internal.StringUtil;
 
 import static io.netty.util.internal.ObjectUtil.*;
 
@@ -78,6 +79,33 @@ public class HAProxyTLV extends DefaultByteBufHolder {
                 return OTHER;
             }
         }
+
+        public static byte byteValueForType(final Type type) {
+            switch (type) {
+            case PP2_TYPE_ALPN:
+                return 0x01;
+            case PP2_TYPE_AUTHORITY:
+                return 0x02;
+            case PP2_TYPE_SSL:
+                return 0x20;
+            case PP2_TYPE_SSL_VERSION:
+                return 0x21;
+            case PP2_TYPE_SSL_CN:
+                return 0x22;
+            case PP2_TYPE_NETNS:
+                return 0x30;
+            default:
+                throw new IllegalArgumentException("unknown type: " + type);
+            }
+        }
+    }
+
+    public HAProxyTLV(final byte typeByteValue, final ByteBuf content) {
+        this(Type.typeForByteValue(typeByteValue), typeByteValue, content);
+    }
+
+    public HAProxyTLV(Type type, final ByteBuf content) {
+        this(type, Type.byteValueForType(type), content);
     }
 
     /**
@@ -149,5 +177,16 @@ public class HAProxyTLV extends DefaultByteBufHolder {
     public HAProxyTLV touch(Object hint) {
         super.touch(hint);
         return this;
+    }
+
+    @Override
+    public String toString() {
+        return new StringBuilder()
+                .append(StringUtil.simpleClassName(this))
+                .append("(type: ").append(type)
+                .append(", typeByteValue: ").append(typeByteValue)
+                .append(", content: ").append(contentToString())
+                .append(')')
+                .toString();
     }
 }

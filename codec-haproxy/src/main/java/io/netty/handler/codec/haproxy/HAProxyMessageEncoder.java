@@ -105,17 +105,13 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
         out.writeBytes(sb.toString().getBytes(CharsetUtil.US_ASCII));
     }
 
-    void encodeTlv(HAProxyTLV haProxyTLV, ByteBuf out) {
+    static void encodeTlv(HAProxyTLV haProxyTLV, ByteBuf out) {
         if (haProxyTLV instanceof HAProxySSLTLV) {
             HAProxySSLTLV ssltlv = (HAProxySSLTLV) haProxyTLV;
             out.writeByte(haProxyTLV.typeByteValue());
-
-            byte client = ssltlv.client();
-            int verify = ssltlv.verify();
-
             out.writeShort(ssltlv.contentSize());
-            out.writeByte(client);
-            out.writeInt(verify);
+            out.writeByte(ssltlv.client());
+            out.writeInt(ssltlv.verify());
             encodeTlvs(ssltlv.encapsulatedTLVs(), out);
         } else {
             out.writeByte(haProxyTLV.typeByteValue());
@@ -126,7 +122,7 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
         }
     }
 
-    void encodeTlvs(List<HAProxyTLV> haProxyTLVs, ByteBuf out) {
+    static void encodeTlvs(List<HAProxyTLV> haProxyTLVs, ByteBuf out) {
         for (HAProxyTLV tlv: haProxyTLVs) {
             encodeTlv(tlv, out);
         }

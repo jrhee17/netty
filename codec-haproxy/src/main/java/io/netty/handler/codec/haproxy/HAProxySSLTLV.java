@@ -17,6 +17,8 @@
 package io.netty.handler.codec.haproxy;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.util.internal.StringUtil;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +32,10 @@ public final class HAProxySSLTLV extends HAProxyTLV {
     private final int verify;
     private final List<HAProxyTLV> tlvs;
     private final byte clientBitField;
+
+    public HAProxySSLTLV(final int verify, final byte clientBitField, final List<HAProxyTLV> tlvs) {
+        this(verify, clientBitField, tlvs, Unpooled.EMPTY_BUFFER);
+    }
 
     /**
      * Creates a new HAProxySSLTLV
@@ -97,5 +103,17 @@ public final class HAProxySSLTLV extends HAProxyTLV {
             sz += tlvs.get(i).size();
         }
         return 5 + sz;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder()
+                .append(StringUtil.simpleClassName(this))
+                .append("(type: ").append(type())
+                .append(", typeByteValue: ").append(typeByteValue())
+                .append(", client: ").append(client())
+                .append(", verify: ").append(verify())
+                .append(')');
+        return sb.toString();
     }
 }

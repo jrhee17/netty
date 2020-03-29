@@ -25,6 +25,7 @@ import io.netty.util.ResourceLeakDetector;
 import io.netty.util.ResourceLeakDetectorFactory;
 import io.netty.util.ResourceLeakTracker;
 import io.netty.util.internal.ObjectUtil;
+import io.netty.util.internal.StringUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -61,7 +62,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     /**
      * Creates a new instance
      */
-    HAProxyMessage(
+    public HAProxyMessage(
             HAProxyProtocolVersion protocolVersion, HAProxyCommand command, HAProxyProxiedProtocol proxiedProtocol,
             String sourceAddress, String destinationAddress, int sourcePort, int destinationPort) {
 
@@ -72,10 +73,10 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     /**
      * Creates a new instance
      */
-    HAProxyMessage(
+    public HAProxyMessage(
             HAProxyProtocolVersion protocolVersion, HAProxyCommand command, HAProxyProxiedProtocol proxiedProtocol,
             String sourceAddress, String destinationAddress, int sourcePort, int destinationPort,
-            List<HAProxyTLV> tlvs) {
+            List<? extends HAProxyTLV> tlvs) {
 
         ObjectUtil.checkNotNull(proxiedProtocol, "proxiedProtocol");
         AddressFamily addrFamily = proxiedProtocol.addressFamily();
@@ -579,5 +580,27 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
                 assert closed;
             }
         }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder()
+                .append(StringUtil.simpleClassName(this))
+                .append("(protocolVersion: ").append(protocolVersion)
+                .append(", command: ").append(command)
+                .append(", proxiedProtocol: ").append(proxiedProtocol)
+                .append(", sourceAddress: ").append(sourceAddress)
+                .append(", destinationAddress: ").append(destinationAddress)
+                .append(", sourcePort: ").append(sourcePort)
+                .append(", destinationPort: ").append(destinationPort)
+                .append(", tlvs: [");
+        for (HAProxyTLV tlv: tlvs) {
+            sb.append(tlv).append(", ");
+        }
+        if (!tlvs.isEmpty()) {
+            sb.setLength(sb.length() - 2);
+        }
+        sb.append("])");
+        return sb.toString();
     }
 }
