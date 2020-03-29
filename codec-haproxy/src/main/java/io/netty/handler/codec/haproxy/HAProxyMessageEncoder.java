@@ -39,48 +39,18 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
     static final int IPv6_ADDRESS_BYTES_LENGTH = 36;
     static final int UNIX_ADDRESS_BYTES_LENGTH = 216;
 
+    private static final int V2_VERSION_BITMASK = 0x02 << 4;
+
     @Override
     protected void encode(ChannelHandlerContext ctx, HAProxyMessage msg, ByteBuf out) throws Exception {
         if (msg.protocolVersion() == HAProxyProtocolVersion.V1) {
             encodeV1(msg, out);
         } else {
-            out.writeBytes(BINARY_PREFIX);
-            out.writeByte(0x02 << 4 | msg.command().byteValue());
-            out.writeByte(msg.proxiedProtocol().byteValue());
-
-            int tlvSize = msg.tlvSize();
-
-            List<HAProxyTLV> tlvs = msg.tlvs();
-            if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_IPv4) {
-                out.writeShort(IPv4_ADDRESS_BYTES_LENGTH + tlvSize);
-                out.writeBytes(NetUtil.createByteArrayFromIpAddressString(msg.sourceAddress()));
-                out.writeBytes(NetUtil.createByteArrayFromIpAddressString(msg.destinationAddress()));
-                out.writeShort(msg.sourcePort());
-                out.writeShort(msg.destinationPort());
-                encodeTlvs(tlvs, out);
-            } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_IPv6) {
-                out.writeShort(IPv6_ADDRESS_BYTES_LENGTH + tlvSize);
-                out.writeBytes(NetUtil.getByName(msg.sourceAddress()).getAddress());
-                out.writeBytes(NetUtil.getByName(msg.destinationAddress()).getAddress());
-                out.writeShort(msg.sourcePort());
-                out.writeShort(msg.destinationPort());
-                encodeTlvs(tlvs, out);
-            } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_UNIX) {
-                out.writeShort(UNIX_ADDRESS_BYTES_LENGTH + tlvSize);
-                byte[] srcAddressBytes = msg.sourceAddress().getBytes(CharsetUtil.US_ASCII);
-                out.writeBytes(srcAddressBytes);
-                out.writeBytes(new byte[108 - srcAddressBytes.length]);
-                byte[] dstAddressBytes = msg.destinationAddress().getBytes(CharsetUtil.US_ASCII);
-                out.writeBytes(dstAddressBytes);
-                out.writeBytes(new byte[108 - dstAddressBytes.length]);
-                encodeTlvs(tlvs, out);
-            } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_UNSPEC) {
-                out.writeShort(0);
-            }
+            encodeV2(msg, out);
         }
     }
 
-    void encodeV1(HAProxyMessage msg, ByteBuf out) {
+    private static void encodeV1(HAProxyMessage msg, ByteBuf out) {
         final String protocol = msg.proxiedProtocol().name();
         StringBuilder sb = new StringBuilder(108)
                 .append("PROXY ").append(protocol).append(' ')
@@ -88,6 +58,42 @@ public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> 
                 .append(msg.destinationAddress()).append(' ')
                 .append(msg.sourcePort()).append(' ').append(msg.destinationPort()).append("\r\n");
         out.writeBytes(sb.toString().getBytes(CharsetUtil.US_ASCII));
+    }
+
+    private static void encodeV2(HAProxyMessage msg, ByteBuf out) {
+        out.writeBytes(BINARY_PREFIX);
+        out.writeByte(V2_VERSION_BITMASK | msg.command().byteValue());
+        out.writeByte(msg.proxiedProtocol().byteValue());
+
+        int tlvSize = msg.tlvSize();
+
+        List<HAProxyTLV> tlvs = msg.tlvs();
+        if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_IPv4) {
+            out.writeShort(IPv4_ADDRESS_BYTES_LENGTH + tlvSize);
+            out.writeBytes(NetUtil.createByteArrayFromIpAddressString(msg.sourceAddress()));
+            out.writeBytes(NetUtil.createByteArrayFromIpAddressString(msg.destinationAddress()));
+            out.writeShort(msg.sourcePort());
+            out.writeShort(msg.destinationPort());
+            encodeTlvs(tlvs, out);
+        } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_IPv6) {
+            out.writeShort(IPv6_ADDRESS_BYTES_LENGTH + tlvSize);
+            out.writeBytes(NetUtil.getByName(msg.sourceAddress()).getAddress());
+            out.writeBytes(NetUtil.getByName(msg.destinationAddress()).getAddress());
+            out.writeShort(msg.sourcePort());
+            out.writeShort(msg.destinationPort());
+            encodeTlvs(tlvs, out);
+        } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_UNIX) {
+            out.writeShort(UNIX_ADDRESS_BYTES_LENGTH + tlvSize);
+            byte[] srcAddressBytes = msg.sourceAddress().getBytes(CharsetUtil.US_ASCII);
+            out.writeBytes(srcAddressBytes);
+            out.writeBytes(new byte[108 - srcAddressBytes.length]);
+            byte[] dstAddressBytes = msg.destinationAddress().getBytes(CharsetUtil.US_ASCII);
+            out.writeBytes(dstAddressBytes);
+            out.writeBytes(new byte[108 - dstAddressBytes.length]);
+            encodeTlvs(tlvs, out);
+        } else if (msg.proxiedProtocol().addressFamily() == AddressFamily.AF_UNSPEC) {
+            out.writeShort(0);
+        }
     }
 
     static void encodeTlv(HAProxyTLV haProxyTLV, ByteBuf out) {
