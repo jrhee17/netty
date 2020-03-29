@@ -113,7 +113,25 @@ public final class HAProxySSLTLV extends HAProxyTLV {
                 .append(", typeByteValue: ").append(typeByteValue())
                 .append(", client: ").append(client())
                 .append(", verify: ").append(verify())
-                .append(')');
+                .append(", encapsulatedTlvs: [");
+        for (HAProxyTLV tlv: tlvs) {
+            sb.append(tlv).append(", ");
+        }
+        if (!tlvs.isEmpty()) {
+            sb.setLength(sb.length() - 2);
+        }
+        sb.append("])");
         return sb.toString();
+    }
+
+    @Override
+    String simpleToString() {
+        return new StringBuilder()
+                .append(StringUtil.simpleClassName(this))
+                .append("(type: ").append(type())
+                .append(", typeByteValue: ").append(typeByteValue())
+                .append(", client: ").append(client())
+                .append(", verify: ").append(verify())
+                .append(')').toString();
     }
 }

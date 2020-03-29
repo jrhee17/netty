@@ -595,7 +595,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
                 .append(", destinationPort: ").append(destinationPort)
                 .append(", tlvs: [");
         for (HAProxyTLV tlv: tlvs) {
-            sb.append(tlv).append(", ");
+            sb.append(tlv.simpleToString()).append(", ");
         }
         if (!tlvs.isEmpty()) {
             sb.setLength(sb.length() - 2);

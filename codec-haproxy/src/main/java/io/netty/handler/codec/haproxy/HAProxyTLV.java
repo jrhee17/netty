@@ -189,4 +189,12 @@ public class HAProxyTLV extends DefaultByteBufHolder {
                 .append(')')
                 .toString();
     }
+
+    String simpleToString() {
+        return new StringBuilder()
+                .append(StringUtil.simpleClassName(this))
+                .append("(type: ").append(type)
+                .append(", typeByteValue: ").append(typeByteValue)
+                .append(')').toString();
+    }
 }
