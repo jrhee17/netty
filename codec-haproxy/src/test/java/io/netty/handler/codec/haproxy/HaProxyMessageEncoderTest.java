@@ -29,10 +29,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static io.netty.handler.codec.haproxy.HAProxyConstants.*;
 import static io.netty.handler.codec.haproxy.HAProxyMessageEncoder.*;
 import static org.junit.Assert.*;
 
 public class HaProxyMessageEncoderTest {
+
+    static final int V2_HEADER_BYTES_LENGTH = 16;
 
     @Test
     public void testIPV4EncodeProxyV1() {
@@ -342,8 +345,6 @@ public class HaProxyMessageEncoderTest {
         assertTrue(ch.writeOutbound(message));
 
         ByteBuf byteBuf = ch.readOutbound();
-
-        System.out.println(ByteBufUtil.prettyHexDump(byteBuf));
 
         assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - 16);
         ByteBuf tlv = byteBuf.skipBytes(V2_HEADER_BYTES_LENGTH + IPv4_ADDRESS_BYTES_LENGTH);

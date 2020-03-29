@@ -24,6 +24,8 @@ import io.netty.util.NetUtil;
 
 import java.util.List;
 
+import static io.netty.handler.codec.haproxy.HAProxyConstants.*;
+
 /**
  * Encodes an HAProxy proxy protocol header
  *
@@ -31,25 +33,6 @@ import java.util.List;
  */
 public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> {
 
-    /**
-     * Binary header prefix
-     */
-    static final byte[] BINARY_PREFIX = {
-            (byte) 0x0D,
-            (byte) 0x0A,
-            (byte) 0x0D,
-            (byte) 0x0A,
-            (byte) 0x00,
-            (byte) 0x0D,
-            (byte) 0x0A,
-            (byte) 0x51,
-            (byte) 0x55,
-            (byte) 0x49,
-            (byte) 0x54,
-            (byte) 0x0A
-    };
-
-    static final int V2_HEADER_BYTES_LENGTH = 16;
     static final int IPv4_ADDRESS_BYTES_LENGTH = 12;
     static final int IPv6_ADDRESS_BYTES_LENGTH = 36;
     static final int UNIX_ADDRESS_BYTES_LENGTH = 216;
