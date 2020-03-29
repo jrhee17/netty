@@ -16,6 +16,7 @@
 package io.netty.handler.codec.haproxy;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol.AddressFamily;
@@ -31,6 +32,7 @@ import static io.netty.handler.codec.haproxy.HAProxyConstants.*;
  *
  * @see <a href="http://www.haproxy.org/download/1.8/doc/proxy-protocol.txt">Proxy Protocol Specification</a>
  */
+@Sharable
 public class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMessage> {
 
     static final int IPv4_ADDRESS_BYTES_LENGTH = 12;
