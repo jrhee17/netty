@@ -152,7 +152,7 @@ public class HaProxyMessageEncoderTest {
                 (byte) 0x85, (byte) 0xa3, 0x00, 0x00, 0x00, 0x00, (byte) 0x8a, 0x2e,
                 0x03, 0x70, 0x73, 0x34}, sourceAddr);
 
-        // destination address 1050:0:0:0:5:600:300c:326b
+        // destination address
         byte[] destAddr = ByteBufUtil.getBytes(byteBuf, 32, 16);
         assertArrayEquals(new byte[] { (byte) 0x10, (byte) 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x05, 0x06, 0x00, 0x30, 0x0c, 0x32, 0x6b}, destAddr);
@@ -208,7 +208,7 @@ public class HaProxyMessageEncoderTest {
     }
 
     @Test
-    public void testTLVEncodeProxyV2IPV4() {
+    public void testTLVEncodeProxy() {
         HAProxyMessageEncoder encoder = new HAProxyMessageEncoder();
         EmbeddedChannel ch = new EmbeddedChannel(encoder);
 
@@ -229,14 +229,19 @@ public class HaProxyMessageEncoderTest {
 
         ByteBuf byteBuf = ch.readOutbound();
 
-        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - 16);
+        // length
+        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - V2_HEADER_BYTES_LENGTH);
 
+        // skip to tlv section
         ByteBuf tlv = byteBuf.skipBytes(V2_HEADER_BYTES_LENGTH + IPv4_ADDRESS_BYTES_LENGTH);
+
+        // alpn tlv
         assertEquals(alpnTlv.typeByteValue(), tlv.readByte());
         short bufLength = tlv.readShort();
         assertEquals(helloWorld.array().length, bufLength);
         assertEquals(helloWorld, tlv.readBytes(bufLength));
 
+        // authority tlv
         assertEquals(authorityTlv.typeByteValue(), tlv.readByte());
         bufLength = tlv.readShort();
         assertEquals(arbitrary.array().length, bufLength);
@@ -244,81 +249,7 @@ public class HaProxyMessageEncoderTest {
     }
 
     @Test
-    public void testTLVEncodeProxyV2IPV6() {
-        HAProxyMessageEncoder encoder = new HAProxyMessageEncoder();
-        EmbeddedChannel ch = new EmbeddedChannel(encoder);
-
-        List<HAProxyTLV> tlvs = new ArrayList<HAProxyTLV>();
-
-        ByteBuf helloWorld = Unpooled.copiedBuffer("hello world", CharsetUtil.US_ASCII);
-        HAProxyTLV alpnTlv = new HAProxyTLV(Type.PP2_TYPE_ALPN, (byte) 0x01, helloWorld.copy());
-        tlvs.add(alpnTlv);
-
-        ByteBuf arbitrary = Unpooled.copiedBuffer("an arbitrary string", CharsetUtil.US_ASCII);
-        HAProxyTLV authorityTlv = new HAProxyTLV(Type.PP2_TYPE_AUTHORITY, (byte) 0x01, arbitrary.copy());
-        tlvs.add(authorityTlv);
-
-        HAProxyMessage message = new HAProxyMessage(
-                HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP6,
-                "2001:0db8:85a3:0000:0000:8a2e:0370:7334", "1050:0:0:0:5:600:300c:326b", 56324, 443,
-                tlvs);
-        assertTrue(ch.writeOutbound(message));
-
-        ByteBuf byteBuf = ch.readOutbound();
-
-        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - 16);
-
-        ByteBuf tlv = byteBuf.skipBytes(V2_HEADER_BYTES_LENGTH + IPv6_ADDRESS_BYTES_LENGTH);
-        assertEquals(alpnTlv.typeByteValue(), tlv.readByte());
-        short bufLength = tlv.readShort();
-        assertEquals(helloWorld.array().length, bufLength);
-        assertEquals(helloWorld, tlv.readBytes(bufLength));
-
-        assertEquals(authorityTlv.typeByteValue(), tlv.readByte());
-        bufLength = tlv.readShort();
-        assertEquals(arbitrary.array().length, bufLength);
-        assertEquals(arbitrary, tlv.readBytes(bufLength));
-    }
-
-    @Test
-    public void testTLVEncodeProxyV2Unix() {
-        HAProxyMessageEncoder encoder = new HAProxyMessageEncoder();
-        EmbeddedChannel ch = new EmbeddedChannel(encoder);
-
-        List<HAProxyTLV> tlvs = new ArrayList<HAProxyTLV>();
-
-        ByteBuf helloWorld = Unpooled.copiedBuffer("hello world", CharsetUtil.US_ASCII);
-        HAProxyTLV alpnTlv = new HAProxyTLV(Type.PP2_TYPE_ALPN, (byte) 0x01, helloWorld.copy());
-        tlvs.add(alpnTlv);
-
-        ByteBuf arbitrary = Unpooled.copiedBuffer("an arbitrary string", CharsetUtil.US_ASCII);
-        HAProxyTLV authorityTlv = new HAProxyTLV(Type.PP2_TYPE_AUTHORITY, (byte) 0x01, arbitrary.copy());
-        tlvs.add(authorityTlv);
-
-        HAProxyMessage message = new HAProxyMessage(
-                HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.UNIX_STREAM,
-                "/var/run/src.sock", "/var/run/dst.sock", 0, 0,
-                tlvs);
-        assertTrue(ch.writeOutbound(message));
-
-        ByteBuf byteBuf = ch.readOutbound();
-
-        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - 16);
-
-        ByteBuf tlv = byteBuf.skipBytes(V2_HEADER_BYTES_LENGTH + UNIX_ADDRESS_BYTES_LENGTH);
-        assertEquals(alpnTlv.typeByteValue(), tlv.readByte());
-        short bufLength = tlv.readShort();
-        assertEquals(helloWorld.array().length, bufLength);
-        assertEquals(helloWorld, tlv.readBytes(bufLength));
-
-        assertEquals(authorityTlv.typeByteValue(), tlv.readByte());
-        bufLength = tlv.readShort();
-        assertEquals(arbitrary.array().length, bufLength);
-        assertEquals(arbitrary, tlv.readBytes(bufLength));
-    }
-
-    @Test
-    public void testSslTLVEncodeProxyV2IPV4() {
+    public void testSslTLVEncodeProxy() {
         HAProxyMessageEncoder encoder = new HAProxyMessageEncoder();
         EmbeddedChannel ch = new EmbeddedChannel(encoder);
 
@@ -343,23 +274,27 @@ public class HaProxyMessageEncoderTest {
 
         ByteBuf byteBuf = ch.readOutbound();
 
-        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - 16);
+        assertEquals(byteBuf.getUnsignedShort(14), byteBuf.readableBytes() - V2_HEADER_BYTES_LENGTH);
         ByteBuf tlv = byteBuf.skipBytes(V2_HEADER_BYTES_LENGTH + IPv4_ADDRESS_BYTES_LENGTH);
 
+        // ssl tlv type
         assertEquals(haProxySSLTLV.typeByteValue(), tlv.readByte());
 
+        // length
         int bufLength = tlv.readUnsignedShort();
-
         assertEquals(bufLength, tlv.readableBytes());
 
-        assertEquals(0x01, byteBuf.readByte()); // client
-        assertEquals(1, byteBuf.readInt()); //verify
+        // client, verify
+        assertEquals(0x01, byteBuf.readByte());
+        assertEquals(1, byteBuf.readInt());
 
+        // alpn tlv
         assertEquals(alpnTlv.typeByteValue(), tlv.readByte());
         bufLength = tlv.readShort();
         assertEquals(helloWorld.array().length, bufLength);
         assertEquals(helloWorld, tlv.readBytes(bufLength));
 
+        // authority tlv
         assertEquals(authorityTlv.typeByteValue(), tlv.readByte());
         bufLength = tlv.readShort();
         assertEquals(arbitrary.array().length, bufLength);
@@ -428,6 +363,14 @@ public class HaProxyMessageEncoderTest {
         new HAProxyMessage(
                 HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.UNIX_STREAM,
                 null, null, 0, 0);
+    }
+
+    @Test(expected = HAProxyProtocolException.class)
+    public void testLongUnixAddress() {
+        String longUnixAddress = new String(new char[109]).replace("\0", "a");
+        new HAProxyMessage(
+                HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.UNIX_STREAM,
+                "source", longUnixAddress, 0, 0);
     }
 
     @Test(expected = HAProxyProtocolException.class)
