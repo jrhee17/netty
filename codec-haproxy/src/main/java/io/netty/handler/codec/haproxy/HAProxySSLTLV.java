@@ -33,6 +33,14 @@ public final class HAProxySSLTLV extends HAProxyTLV {
     private final List<HAProxyTLV> tlvs;
     private final byte clientBitField;
 
+    /**
+     * Creates a new HAProxySSLTLV
+     *
+     * @param verify the verification result as defined in the specification for the pp2_tlv_ssl struct (see
+     * http://www.haproxy.org/download/1.8/doc/proxy-protocol.txt)
+     * @param clientBitField the bitfield with client information
+     * @param tlvs the encapsulated {@link HAProxyTLV}s
+     */
     public HAProxySSLTLV(final int verify, final byte clientBitField, final List<HAProxyTLV> tlvs) {
         this(verify, clientBitField, tlvs, Unpooled.EMPTY_BUFFER);
     }
@@ -41,7 +49,7 @@ public final class HAProxySSLTLV extends HAProxyTLV {
      * Creates a new HAProxySSLTLV
      *
      * @param verify the verification result as defined in the specification for the pp2_tlv_ssl struct (see
-     * http://www.haproxy.org/download/1.5/doc/proxy-protocol.txt)
+     * http://www.haproxy.org/download/1.8/doc/proxy-protocol.txt)
      * @param clientBitField the bitfield with client information
      * @param tlvs the encapsulated {@link HAProxyTLV}s
      * @param rawContent the raw TLV content
@@ -93,16 +101,12 @@ public final class HAProxySSLTLV extends HAProxyTLV {
     }
 
     @Override
-    public int size() {
-        return 3 + contentSize();
-    }
-
-    public int contentSize() {
-        int sz = 0;
+    int contentNumBytes() {
+        int tlvNumBytes = 0;
         for (int i = 0; i < tlvs.size(); i++) {
-            sz += tlvs.get(i).size();
+            tlvNumBytes += tlvs.get(i).totalNumBytes();
         }
-        return 5 + sz;
+        return 5 + tlvNumBytes; // clientBit(1) + verify(4) + tlvs
     }
 
     @Override

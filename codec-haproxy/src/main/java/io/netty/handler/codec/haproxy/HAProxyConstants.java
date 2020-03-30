@@ -57,7 +57,7 @@ final class HAProxyConstants {
     static final byte TPAF_UNIX_DGRAM_BYTE = 0x32;
 
     /**
-     * Binary header prefix
+     * V2 protocol binary header prefix
      */
     static final byte[] BINARY_PREFIX = {
             (byte) 0x0D,

@@ -33,8 +33,16 @@ public class HAProxyTLV extends DefaultByteBufHolder {
     private final Type type;
     private final byte typeByteValue;
 
-    public int size() {
-        return 3 + content().readableBytes();
+    /**
+     * The size of this tlv in bytes.
+     * @return the number of bytes.
+     */
+    int totalNumBytes() {
+        return 3 + contentNumBytes(); // type(1) + length(2) + content
+    }
+
+    int contentNumBytes() {
+        return content().readableBytes();
     }
 
     /**
@@ -100,10 +108,22 @@ public class HAProxyTLV extends DefaultByteBufHolder {
         }
     }
 
+    /**
+     * Creates a new HAProxyTLV
+     *
+     * @param typeByteValue the byteValue of the TLV. This is especially important if non-standard TLVs are used
+     * @param content the raw content of the TLV
+     */
     public HAProxyTLV(final byte typeByteValue, final ByteBuf content) {
         this(Type.typeForByteValue(typeByteValue), typeByteValue, content);
     }
 
+    /**
+     * Creates a new HAProxyTLV
+     *
+     * @param type the {@link Type} of the TLV
+     * @param content the raw content of the TLV
+     */
     public HAProxyTLV(Type type, final ByteBuf content) {
         this(type, Type.byteValueForType(type), content);
     }

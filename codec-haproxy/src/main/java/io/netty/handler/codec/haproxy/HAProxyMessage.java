@@ -51,7 +51,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     /**
      * Creates a new instance
      */
-    HAProxyMessage(
+    private HAProxyMessage(
             HAProxyProtocolVersion protocolVersion, HAProxyCommand command, HAProxyProxiedProtocol proxiedProtocol,
             String sourceAddress, String destinationAddress, String sourcePort, String destinationPort) {
         this(
@@ -60,7 +60,14 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     }
 
     /**
-     * Creates a new instance
+     * Creates a new instance of HAProxyMessage.
+     * @param protocolVersion the protocol version.
+     * @param command the command.
+     * @param proxiedProtocol the protocol containing the address family and transport protocol.
+     * @param sourceAddress the source address.
+     * @param destinationAddress the destination address.
+     * @param sourcePort the source port. This value must be 0 for unix, unspec addresses.
+     * @param destinationPort the destination port. This value must be 0 for unix, unspec addresses.
      */
     public HAProxyMessage(
             HAProxyProtocolVersion protocolVersion, HAProxyCommand command, HAProxyProxiedProtocol proxiedProtocol,
@@ -71,7 +78,15 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     }
 
     /**
-     * Creates a new instance
+     * Creates a new instance of HAProxyMessage.
+     * @param protocolVersion the protocol version.
+     * @param command the command.
+     * @param proxiedProtocol the protocol containing the address family and transport protocol.
+     * @param sourceAddress the source address.
+     * @param destinationAddress the destination address.
+     * @param sourcePort the source port. This value must be 0 for unix, unspec addresses.
+     * @param destinationPort the destination port. This value must be 0 for unix, unspec addresses.
+     * @param tlvs the list of tlvs.
      */
     public HAProxyMessage(
             HAProxyProtocolVersion protocolVersion, HAProxyCommand command, HAProxyProxiedProtocol proxiedProtocol,
@@ -79,6 +94,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
             List<? extends HAProxyTLV> tlvs) {
 
         ObjectUtil.checkNotNull(proxiedProtocol, "proxiedProtocol");
+        ObjectUtil.checkNotNull(tlvs, "tlvs");
         AddressFamily addrFamily = proxiedProtocol.addressFamily();
 
         checkAddress(sourceAddress, addrFamily);
@@ -433,7 +449,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     }
 
     /**
-     * Validate a HAProxy port
+     * Validate the port depending on the addrFamily.
      *
      * @param port                       the UDP/TCP port
      * @throws HAProxyProtocolException  if the port is out of range (0-65535 inclusive)
@@ -449,7 +465,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
         case AF_UNIX:
         case AF_UNSPEC:
             if (port != 0) {
-                throw new HAProxyProtocolException("unix port cannot be specified");
+                throw new HAProxyProtocolException("port cannot be specified with addrFamily: " + addrFamily);
             }
             break;
         default:
@@ -515,12 +531,12 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
         return tlvs;
     }
 
-    int tlvSize() {
-        int sz = 0;
+    int tlvNumBytes() {
+        int tlvNumBytes = 0;
         for (int i = 0; i < tlvs.size(); i++) {
-            sz += tlvs.get(i).size();
+            tlvNumBytes += tlvs.get(i).totalNumBytes();
         }
-        return sz;
+        return tlvNumBytes;
     }
 
     @Override
