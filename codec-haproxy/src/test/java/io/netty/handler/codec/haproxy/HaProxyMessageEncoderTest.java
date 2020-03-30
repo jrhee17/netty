@@ -83,8 +83,7 @@ public class HaProxyMessageEncoderTest {
 
         // header
         byte[] headerBytes = ByteBufUtil.getBytes(byteBuf, 0, 12);
-        assertArrayEquals(headerBytes,
-                          new byte[] {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A});
+        assertArrayEquals(BINARY_PREFIX, headerBytes);
 
         // command
         byte commandByte = byteBuf.getByte(12);
@@ -131,8 +130,7 @@ public class HaProxyMessageEncoderTest {
 
         // header
         byte[] headerBytes = ByteBufUtil.getBytes(byteBuf, 0, 12);
-        assertArrayEquals(headerBytes,
-                          new byte[] {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A});
+        assertArrayEquals(BINARY_PREFIX, headerBytes);
 
         // command
         byte commandByte = byteBuf.getByte(12);
@@ -182,8 +180,7 @@ public class HaProxyMessageEncoderTest {
 
         // header
         byte[] headerBytes = ByteBufUtil.getBytes(byteBuf, 0, 12);
-        assertArrayEquals(headerBytes,
-                          new byte[] {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A});
+        assertArrayEquals(BINARY_PREFIX, headerBytes);
 
         // command
         byte commandByte = byteBuf.getByte(12);
@@ -204,7 +201,7 @@ public class HaProxyMessageEncoderTest {
         assertEquals("/var/run/src.sock",
                      byteBuf.slice(16, srcAddrEnd - 16).toString(CharsetUtil.US_ASCII));
 
-        // destination address 1050:0:0:0:5:600:300c:326b
+        // destination address
         int dstAddrEnd = byteBuf.forEachByte(124, 108, ByteProcessor.FIND_NUL);
         assertEquals("/var/run/dst.sock",
                      byteBuf.slice(124, dstAddrEnd - 124).toString(CharsetUtil.US_ASCII));
@@ -426,8 +423,8 @@ public class HaProxyMessageEncoderTest {
                 invalidUnixAddress, "/var/run/dst.sock", 0, 0);
     }
 
-    @Test
-    public void testNullUnixAddressAllowed() {
+    @Test(expected = HAProxyProtocolException.class)
+    public void testNullUnixAddress() {
         new HAProxyMessage(
                 HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.UNIX_STREAM,
                 null, null, 0, 0);

@@ -424,8 +424,8 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
                 }
                 return;
             case AF_UNIX:
-                if (address != null && address.getBytes(CharsetUtil.US_ASCII).length > 108) {
-                    throw new HAProxyProtocolException("too long AF_UNIX address: " + address);
+                if (address == null || address.getBytes(CharsetUtil.US_ASCII).length > 108) {
+                    throw new HAProxyProtocolException("invalid AF_UNIX address: " + address);
                 }
                 return;
         }
