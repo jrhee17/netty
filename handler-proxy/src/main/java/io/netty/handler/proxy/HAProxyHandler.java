@@ -16,8 +16,16 @@
 
 package io.netty.handler.proxy;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyMessageEncoder;
+import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 public class HAProxyHandler extends ProxyHandler {
@@ -28,36 +36,44 @@ public class HAProxyHandler extends ProxyHandler {
 
     @Override
     public String protocol() {
-        return null;
+        return "haproxy";
     }
 
     @Override
     public String authScheme() {
-        return null;
+        return AUTH_NONE;
     }
 
     @Override
     protected void addCodec(ChannelHandlerContext ctx) throws Exception {
-
+        ctx.pipeline().addBefore(ctx.name(), null, new HAProxyMessageEncoder());
     }
 
     @Override
     protected void removeEncoder(ChannelHandlerContext ctx) throws Exception {
-
+        ctx.pipeline().remove(HAProxyMessageEncoder.class);
     }
 
     @Override
     protected void removeDecoder(ChannelHandlerContext ctx) throws Exception {
-
     }
 
     @Override
     protected Object newInitialMessage(ChannelHandlerContext ctx) throws Exception {
-        return null;
+        InetSocketAddress socketAddress = proxyAddress();
+        InetAddress address = socketAddress.getAddress();
+
+        InetSocketAddress destAddress = destinationAddress();
+        InetAddress dest = destAddress.getAddress();
+        return new HAProxyMessage(
+                HAProxyProtocolVersion.V1, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP6,
+                address.getHostAddress(), dest.getHostAddress(), socketAddress.getPort(), destAddress.getPort());
     }
 
     @Override
     protected boolean handleResponse(ChannelHandlerContext ctx, Object response) throws Exception {
-        return false;
+        ByteBuf res = (ByteBuf) response;
+        ctx.fireChannelRead(res.retain());
+        return true;
     }
 }
