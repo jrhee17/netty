@@ -479,6 +479,20 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
         }
     }
 
+    static void encodeTlv(ByteBuf out, HAProxyTLV haProxyTLV) {
+        out.writeByte(haProxyTLV.typeByteValue());
+        ByteBuf content = haProxyTLV.content();
+        int readableBytes = content.readableBytes();
+        out.writeShort(readableBytes);
+        out.writeBytes(content.readSlice(readableBytes));
+    }
+
+    static void encodeTlvs(ByteBuf out, List<HAProxyTLV> haProxyTLVs) {
+        for (int i = 0; i < haProxyTLVs.size(); i++) {
+            encodeTlv(out, haProxyTLVs.get(i));
+        }
+    }
+
     /**
      * Returns the {@link HAProxyProtocolVersion} of this {@link HAProxyMessage}.
      */
@@ -540,7 +554,7 @@ public final class HAProxyMessage extends AbstractReferenceCounted {
     int tlvNumBytes() {
         int tlvNumBytes = 0;
         for (int i = 0; i < tlvs.size(); i++) {
-            tlvNumBytes += tlvs.get(i).totalNumBytes();
+            tlvNumBytes += tlvs.get(i).numBytes();
         }
         return tlvNumBytes;
     }

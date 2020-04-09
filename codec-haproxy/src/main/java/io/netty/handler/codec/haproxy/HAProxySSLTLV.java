@@ -17,17 +17,28 @@
 package io.netty.handler.codec.haproxy;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.internal.StringUtil;
 
 import java.util.Collections;
 import java.util.List;
+
+import static io.netty.handler.codec.haproxy.HAProxyMessage.*;
 
 /**
  * Represents a {@link HAProxyTLV} of the type {@link HAProxyTLV.Type#PP2_TYPE_SSL}.
  * This TLV encapsulates other TLVs and has additional information like verification information and a client bitfield.
  */
 public final class HAProxySSLTLV extends HAProxyTLV {
+
+    private static ByteBuf createRawContent(int verify, byte clientBitField,
+                                            List<HAProxyTLV> tlvs, ByteBufAllocator allocator) {
+        ByteBuf out = allocator.ioBuffer();
+        out.writeByte(clientBitField);
+        out.writeInt(verify);
+        encodeTlvs(out, tlvs);
+        return out;
+    }
 
     private final int verify;
     private final List<HAProxyTLV> tlvs;
@@ -41,8 +52,9 @@ public final class HAProxySSLTLV extends HAProxyTLV {
      * @param clientBitField the bitfield with client information
      * @param tlvs the encapsulated {@link HAProxyTLV}s
      */
-    public HAProxySSLTLV(final int verify, final byte clientBitField, final List<HAProxyTLV> tlvs) {
-        this(verify, clientBitField, tlvs, Unpooled.EMPTY_BUFFER);
+    public HAProxySSLTLV(final int verify, final byte clientBitField, final List<HAProxyTLV> tlvs,
+                         ByteBufAllocator allocator) {
+        this(verify, clientBitField, tlvs, createRawContent(verify, clientBitField, tlvs, allocator));
     }
 
     /**
@@ -102,15 +114,6 @@ public final class HAProxySSLTLV extends HAProxyTLV {
      */
     public List<HAProxyTLV> encapsulatedTLVs() {
         return tlvs;
-    }
-
-    @Override
-    int contentNumBytes() {
-        int tlvNumBytes = 0;
-        for (int i = 0; i < tlvs.size(); i++) {
-            tlvNumBytes += tlvs.get(i).totalNumBytes();
-        }
-        return 5 + tlvNumBytes; // clientBit(1) + verify(4) + tlvs
     }
 
     @Override

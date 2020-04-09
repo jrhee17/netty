@@ -37,12 +37,8 @@ public class HAProxyTLV extends DefaultByteBufHolder {
      * The size of this tlv in bytes.
      * @return the number of bytes.
      */
-    int totalNumBytes() {
-        return 3 + contentNumBytes(); // type(1) + length(2) + content
-    }
-
-    int contentNumBytes() {
-        return content().readableBytes();
+    int numBytes() {
+        return 3 + content().readableBytes(); // type(1) + length(2) + content
     }
 
     /**

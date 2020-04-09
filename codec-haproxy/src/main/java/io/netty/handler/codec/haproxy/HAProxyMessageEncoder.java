@@ -22,9 +22,8 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.util.CharsetUtil;
 import io.netty.util.NetUtil;
 
-import java.util.List;
-
 import static io.netty.handler.codec.haproxy.HAProxyConstants.*;
+import static io.netty.handler.codec.haproxy.HAProxyMessage.*;
 
 /**
  * Encodes an HAProxy proxy protocol message
@@ -88,7 +87,7 @@ public final class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMes
                 out.writeBytes(dstAddrBytes);
                 out.writeShort(msg.sourcePort());
                 out.writeShort(msg.destinationPort());
-                encodeTlvs(msg.tlvs(), out);
+                encodeTlvs(out, msg.tlvs());
                 break;
             case AF_UNIX:
                 out.writeShort(TOTAL_UNIX_ADDRESS_BYTES_LENGTH + msg.tlvNumBytes());
@@ -96,7 +95,7 @@ public final class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMes
                 out.writeZero(UNIX_ADDRESS_BYTES_LENGTH - srcAddrBytesWritten);
                 int dstAddrBytesWritten = out.writeCharSequence(msg.destinationAddress(), CharsetUtil.US_ASCII);
                 out.writeZero(UNIX_ADDRESS_BYTES_LENGTH - dstAddrBytesWritten);
-                encodeTlvs(msg.tlvs(), out);
+                encodeTlvs(out, msg.tlvs());
                 break;
             case AF_UNSPEC:
                 out.writeShort(0);
@@ -106,26 +105,4 @@ public final class HAProxyMessageEncoder extends MessageToByteEncoder<HAProxyMes
         }
     }
 
-    private static void encodeTlv(HAProxyTLV haProxyTLV, ByteBuf out) {
-        if (haProxyTLV instanceof HAProxySSLTLV) {
-            HAProxySSLTLV ssltlv = (HAProxySSLTLV) haProxyTLV;
-            out.writeByte(haProxyTLV.typeByteValue());
-            out.writeShort(ssltlv.contentNumBytes());
-            out.writeByte(ssltlv.client());
-            out.writeInt(ssltlv.verify());
-            encodeTlvs(ssltlv.encapsulatedTLVs(), out);
-        } else {
-            out.writeByte(haProxyTLV.typeByteValue());
-            ByteBuf value = haProxyTLV.content();
-            int readableBytes = value.readableBytes();
-            out.writeShort(readableBytes);
-            out.writeBytes(value.readSlice(readableBytes));
-        }
-    }
-
-    private static void encodeTlvs(List<HAProxyTLV> haProxyTLVs, ByteBuf out) {
-        for (int i = 0; i < haProxyTLVs.size(); i++) {
-            encodeTlv(haProxyTLVs.get(i), out);
-        }
-    }
 }

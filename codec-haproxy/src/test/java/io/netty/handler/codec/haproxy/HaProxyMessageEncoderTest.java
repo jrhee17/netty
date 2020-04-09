@@ -17,6 +17,7 @@
 package io.netty.handler.codec.haproxy;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -281,7 +282,7 @@ public class HaProxyMessageEncoderTest {
         tlvs.add(authorityTlv);
 
         ByteBuf sslContent = Unpooled.copiedBuffer("some ssl content", CharsetUtil.US_ASCII);
-        HAProxySSLTLV haProxySSLTLV = new HAProxySSLTLV(1, (byte) 0x01, tlvs, sslContent.copy());
+        HAProxySSLTLV haProxySSLTLV = new HAProxySSLTLV(1, (byte) 0x01, tlvs, ByteBufAllocator.DEFAULT);
 
         HAProxyMessage message = new HAProxyMessage(
                 HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
